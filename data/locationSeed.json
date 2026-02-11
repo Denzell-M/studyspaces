@@ -1,0 +1,82 @@
+[
+    {
+        "id": "mills-library",
+        "name": "Mills Memorial Library (McMaster)",
+        "address": "1280 Main St W, Hamilton, ON",
+        "position": { "lat": 43.2622, "lng": -79.9192 },
+        "category": "library",
+        "notes": "Big study library. Great for long sessions."
+    },
+    {
+        "id": "thode-library",
+        "name": "Thode Library (McMaster)",
+        "address": "1280 Main St W, Hamilton, ON",
+        "position": { "lat": 43.2617, "lng": -79.9177 },
+        "category": "library",
+        "notes": "Quiet floors + strong academic vibe."
+    },
+    {
+        "id": "westdale-library",
+        "name": "Westdale Branch Library",
+        "address": "955 King St W, Hamilton, ON",
+        "position": { "lat": 43.2631, "lng": -79.9039 },
+        "category": "library",
+        "notes": "Good quiet seating. Solid backup spot."
+    },
+    {
+        "id": "central-library",
+        "name": "Hamilton Central Library",
+        "address": "55 York Blvd, Hamilton, ON",
+        "position": { "lat": 43.2591, "lng": -79.8718 },
+        "category": "library",
+        "notes": "Downtown. Lots of seating options."
+    },
+    {
+        "id": "durand-coffee",
+        "name": "Durand Coffee (study-friendly café)",
+        "address": "1429 Main St W, Hamilton, ON",
+        "position": { "lat": 43.2612, "lng": -79.9051 },
+        "category": "cafe",
+        "notes": "Great coffee; often students working."
+    },
+    {
+        "id": "ark-and-anchor",
+        "name": "Ark + Anchor Espresso Bar",
+        "address": "300 King St E, Hamilton, ON",
+        "position": { "lat": 43.2566, "lng": -79.8647 },
+        "category": "cafe",
+        "notes": "Nice vibe, good for focused work."
+    },
+    {
+        "id": "relay-coffee",
+        "name": "Relay Coffee Roasters",
+        "address": "30 King William St, Hamilton, ON",
+        "position": { "lat": 43.2564, "lng": -79.8674 },
+        "category": "cafe",
+        "notes": "Downtown café option near transit."
+    },
+    {
+        "id": "gore-park",
+        "name": "Gore Park (quiet outdoor break)",
+        "address": "1 Hughson St N, Hamilton, ON",
+        "position": { "lat": 43.2563, "lng": -79.8694 },
+        "category": "quiet",
+        "notes": "Good for a reset break; outdoor seating nearby."
+    },
+    {
+        "id": "bayfront-park",
+        "name": "Bayfront Park",
+        "address": "200 Harbour Front Dr, Hamilton, ON",
+        "position": { "lat": 43.2754, "lng": -79.8739 },
+        "category": "quiet",
+        "notes": "Peaceful spot to read/walk when you need air."
+    },
+    {
+        "id": "jackson-square",
+        "name": "Jackson Square (indoors seating areas)",
+        "address": "2 King St W, Hamilton, ON",
+        "position": { "lat": 43.2577, "lng": -79.8711 },
+        "category": "late",
+        "notes": "Indoors + central. Can work as an evening fallback."
+    }
+]
