@@ -40,3 +40,41 @@ function assertMapEl() {
   }
   return mapEl;
 }
+
+function createMap(places) {
+  assertMapEl();
+
+  // Default map load location
+  const center = places?.[0]?.position ?? { lat: 43.2557, lng: -79.8711 };
+
+  const map = new google.maps.Map(document.getElementById("map"), {
+    center,
+    zoom: 13,
+    mapId: undefined,
+  });
+
+  const info = new google.maps.InfoWindow();
+
+  for (const place of places) {
+    if (!place.position) continue;
+
+    const marker = new google.maps.Marker({
+      map,
+      position: place.position,
+      title: place.name,
+    });
+
+    marker.addListener("click", () => {
+      info.setContent(`
+                <div style="max-width:240px">
+                    <div style="font-weight:600">${place.name}</div>
+                    <div style="font-size:0.9em">${place.address ?? ""}</div>
+                    <div style="margin-top:6px">${place.notes ?? ""}</div>
+                </div>
+            `);
+      info.open({ anchor: marker, map });
+    });
+  }
+
+  return map;
+}
