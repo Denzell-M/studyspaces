@@ -12,11 +12,17 @@ async function loadPlaces() {
 async function loadSecret() {
   const res = await fetch("./secret.json");
   if (!res.ok) {
-    throw new Error(`
-      Failed to load JSON ((${res.status} ${res.statusText}) at ./secret.json`);
+    throw new Error(
+      `Failed to load JSON (${res.status} ${res.statusText}) at ./secret.json`,
+    );
   }
   const secret = await res.json();
   return secret;
+}
+
+function setStatus(message) {
+  const el = document.getElementById("status");
+  if (el) el.textContent = message;
 }
 
 function loadGoogleMapsScript(apiKey) {
@@ -24,7 +30,9 @@ function loadGoogleMapsScript(apiKey) {
     window.initMap = () => resolve();
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?=${apiKey}&callback=initMap&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
+      apiKey,
+    )}&callback=initMap&libraries=places`;
     script.async = true;
     script.defer = true;
     script.onerror = reject;
@@ -33,10 +41,11 @@ function loadGoogleMapsScript(apiKey) {
 }
 
 function assertMapEl() {
-  const mapEl = document.getElementByID("map");
+  const mapEl = document.getElementById("map");
   if (!mapEl) {
-    throw new Error(`
-      Missing #map Element. Create element to continue.`);
+    throw new Error(
+      'Missing "#map" element. Add <div id="map"></div> to index.html',
+    );
   }
   return mapEl;
 }
@@ -78,3 +87,25 @@ function createMap(places) {
 
   return map;
 }
+
+async function boot() {
+  try {
+    // Load data needed for the map
+    const [places, secret] = await Promise.all([loadPlaces(), loadSecret()]);
+
+    const apiKey = secret.apiKey;
+    if (!apiKey) {
+      throw new Error("No API key found in secret.json.");
+    }
+
+    await loadGoogleMapsScript(apiKey);
+    createMap(places);
+
+    setStatus("");
+  } catch (err) {
+    console.error(err);
+    setStatus(err?.message ?? String(err));
+  }
+}
+
+boot();
