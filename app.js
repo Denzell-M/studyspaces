@@ -160,6 +160,59 @@ function wireGeocodeUI(map) {
   });
 }
 
+function wireMyLocationUI(map) {
+  const btn = document.getElementById("myLocationBtn");
+  if (!btn) return;
+
+  let userMarker = null;
+
+  btn.addEventListener("click", () => {
+    if (!navigator.geolocation) {
+      setStatus("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    setStatus("Requesting your location…");
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        setStatus("");
+        map.panTo({ lat, lng });
+        map.setZoom(15);
+
+        if (userMarker) userMarker.setMap(null);
+        userMarker = new google.maps.Marker({
+          map,
+          position: { lat, lng },
+          title: "Your location",
+        });
+      },
+      (err) => {
+        console.error(err);
+
+        const msg =
+          err.code === err.PERMISSION_DENIED
+            ? "Location permission denied."
+            : err.code === err.POSITION_UNAVAILABLE
+              ? "Location unavailable."
+              : err.code === err.TIMEOUT
+                ? "Location request timed out."
+                : "Failed to get location.";
+
+        setStatus(msg);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000,
+      },
+    );
+  });
+}
+
 async function boot() {
   try {
     const places = await loadPlaces();
@@ -168,6 +221,7 @@ async function boot() {
 
     const map = createMap(places);
     wireGeocodeUI(map);
+    wireMyLocationUI(map);
 
     setStatus("");
   } catch (err) {
