@@ -122,6 +122,21 @@ function createMap(places) {
   return map;
 }
 
+function applyFilter(category) {
+  const map = appState.map;
+  if (!map) return;
+
+  // Close any open InfoWindow so it doesn't float over hidden markers.
+  appState.infoWindow?.close();
+
+  const selected = (category ?? "all").toLowerCase();
+
+  for (const rec of appState.placeMarkers) {
+    const shouldShow = selected === "all" || rec.category === selected;
+    rec.marker.setMap(shouldShow ? map : null);
+  }
+}
+
 function geocodeAddress(geocoder, address) {
   return new Promise((resolve, reject) => {
     geocoder.geocode({ address }, (results, status) => {
