@@ -1,82 +1,204 @@
 [
-    {
-        "id": "mills-library",
-        "name": "Mills Memorial Library (McMaster)",
-        "address": "1280 Main St W, Hamilton, ON",
-        "position": { "lat": 43.2622, "lng": -79.9192 },
-        "category": "library",
-        "notes": "Big study library. Great for long sessions."
+  {
+    "id": "mills-library",
+    "name": "Mills Memorial Library (McMaster)",
+    "address": "1280 Main St W, Hamilton, ON",
+    "position": {
+      "lat": 43.262761,
+      "lng": -79.917647
     },
-    {
-        "id": "thode-library",
-        "name": "Thode Library (McMaster)",
-        "address": "1280 Main St W, Hamilton, ON",
-        "position": { "lat": 43.2617, "lng": -79.9177 },
-        "category": "library",
-        "notes": "Quiet floors + strong academic vibe."
-    },
-    {
-        "id": "westdale-library",
-        "name": "Westdale Branch Library",
-        "address": "955 King St W, Hamilton, ON",
-        "position": { "lat": 43.2631, "lng": -79.9039 },
-        "category": "library",
-        "notes": "Good quiet seating. Solid backup spot."
-    },
-    {
-        "id": "central-library",
-        "name": "Hamilton Central Library",
-        "address": "55 York Blvd, Hamilton, ON",
-        "position": { "lat": 43.2591, "lng": -79.8718 },
-        "category": "library",
-        "notes": "Downtown. Lots of seating options."
-    },
-    {
-        "id": "durand-coffee",
-        "name": "Durand Coffee (study-friendly café)",
-        "address": "1429 Main St W, Hamilton, ON",
-        "position": { "lat": 43.2612, "lng": -79.9051 },
-        "category": "cafe",
-        "notes": "Great coffee; often students working."
-    },
-    {
-        "id": "ark-and-anchor",
-        "name": "Ark + Anchor Espresso Bar",
-        "address": "300 King St E, Hamilton, ON",
-        "position": { "lat": 43.2566, "lng": -79.8647 },
-        "category": "cafe",
-        "notes": "Nice vibe, good for focused work."
-    },
-    {
-        "id": "relay-coffee",
-        "name": "Relay Coffee Roasters",
-        "address": "30 King William St, Hamilton, ON",
-        "position": { "lat": 43.2564, "lng": -79.8674 },
-        "category": "cafe",
-        "notes": "Downtown café option near transit."
-    },
-    {
-        "id": "gore-park",
-        "name": "Gore Park (quiet outdoor break)",
-        "address": "1 Hughson St N, Hamilton, ON",
-        "position": { "lat": 43.2563, "lng": -79.8694 },
-        "category": "quiet",
-        "notes": "Good for a reset break; outdoor seating nearby."
-    },
-    {
-        "id": "bayfront-park",
-        "name": "Bayfront Park",
-        "address": "200 Harbour Front Dr, Hamilton, ON",
-        "position": { "lat": 43.2754, "lng": -79.8739 },
-        "category": "quiet",
-        "notes": "Peaceful spot to read/walk when you need air."
-    },
-    {
-        "id": "jackson-square",
-        "name": "Jackson Square (indoors seating areas)",
-        "address": "2 King St W, Hamilton, ON",
-        "position": { "lat": 43.2577, "lng": -79.8711 },
-        "category": "late",
-        "notes": "Indoors + central. Can work as an evening fallback."
+    "category": "library",
+    "notes": "Big study library. Great for long sessions.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "1280 Main St W, Hamilton, ON",
+      "displayName": "McMaster University, 1280, Main Street West, Ainslie Wood East, Hamilton, Golden Horseshoe, Ontario, L8S 3L8, Canada",
+      "at": "2026-02-18T16:26:11.454Z"
     }
+  },
+  {
+    "id": "thode-library",
+    "name": "Thode Library (McMaster)",
+    "address": "1280 Main St W, Hamilton, ON",
+    "position": {
+      "lat": 43.2639397,
+      "lng": -79.9178252
+    },
+    "category": "library",
+    "notes": "Quiet floors + strong academic vibe.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "1280 Main St W, Hamilton, ON",
+      "displayName": "McMaster University, 1280, Main Street West, Ainslie Wood East, Hamilton, Golden Horseshoe, Ontario, L8S 3L8, Canada",
+      "at": "2026-02-18T16:26:12.587Z"
+    }
+  },
+  {
+    "id": "the-hub-msu",
+    "name": "The Hub (MSU Student Activity Building)",
+    "address": "McMaster University, Hamilton, ON",
+    "position": {
+      "lat": 43.264981,
+      "lng": -79.916982
+    },
+    "category": "study",
+    "notes": "A McMaster Students Union (MSU)-managed student activity facility (often described as a hub of student life) with gathering/collaboration spaces.",
+    "meta": {
+      "source": "https://msumcmaster.ca/hub/"
+    }
+  },
+  {
+    "id": "westdale-library",
+    "name": "Westdale Branch Library",
+    "address": "955 King St W, Hamilton, ON",
+    "position": {
+      "lat": 43.2625654,
+      "lng": -79.9034901
+    },
+    "category": "library",
+    "notes": "Good quiet seating. Solid backup spot.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "955 King St W, Hamilton, ON",
+      "displayName": "Hamilton Public Library - Westdale Branch, 955, King Street West, Westdale, Westdale South, Hamilton, Golden Horseshoe, Ontario, L8S 1L1, Canada",
+      "at": "2026-02-18T16:26:14.302Z"
+    }
+  },
+  {
+    "id": "central-library",
+    "name": "Hamilton Central Library",
+    "address": "55 York Blvd, Hamilton, ON",
+    "position": {
+      "lat": 43.2590096,
+      "lng": -79.8705956
+    },
+    "category": "library",
+    "notes": "Downtown. Lots of seating options.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "55 York Blvd, Hamilton, ON",
+      "displayName": "Hamilton Public Library - Hamilton Central Branch, 55, York Boulevard, Hess Village, Central, Hamilton, Golden Horseshoe, Ontario, L8P 1A1, Canada",
+      "at": "2026-02-18T16:26:16.042Z"
+    }
+  },
+  {
+    "id": "durand-coffee",
+    "name": "Durand Coffee (study-friendly café)",
+    "address": "142 Charlton Ave W, Hamilton, ON",
+    "position": {
+      "lat": 43.251552,
+      "lng": -79.878938
+    },
+    "category": "cafe",
+    "notes": "Great coffee; often students working.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "142 Charlton Ave W, Hamilton, ON",
+      "displayName": "Main Street West, Cootes Paradise, Hamilton, Golden Horseshoe, Ontario, L8S 1C5, Canada",
+      "at": "2026-02-18T16:26:17.885Z"
+    }
+  },
+  {
+    "id": "ark-and-anchor",
+    "name": "Starbucks Coffee Company",
+    "address": "1341 Main St W, Hamilton, ON",
+    "position": {
+      "lat": 43.2575644,
+      "lng": -79.9193875
+    },
+    "category": "cafe",
+    "notes": "Starbucks location.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "Starbucks 1341 Main St W, Hamilton, ON",
+      "displayName": "Starbucks, 1341, Main Street West, Ainslie Wood, Ainslie Wood East, Hamilton, Golden Horseshoe, Ontario, L8S 1C6, Canada",
+      "at": "2026-02-18T16:30:00.000Z",
+      "source": "nominatim search: Starbucks 1341 Main St W, Hamilton, ON"
+    }
+  },
+  {
+    "id": "coco-fresh-tea",
+    "name": "CoCo Fresh Tea & Juice",
+    "address": "1548 Main St W, Hamilton, ON L8S 1E5",
+    "position": {
+      "lat": 43.2577761,
+      "lng": -79.9252709
+    },
+    "category": "cafe",
+    "notes": "Bubble tea spot.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "CoCo Fresh Tea & Juice 1548 Main St W, Hamilton, ON",
+      "displayName": "CoCo Fresh Tea & Juice, 1548, Main Street West, Ainslie Wood North, Hamilton, Golden Horseshoe, Ontario, L8S 1E5, Canada",
+      "at": "2026-02-18T16:35:00.000Z"
+    }
+  },
+  {
+    "id": "relay-coffee",
+    "name": "Relay Coffee Roasters",
+    "address": "30 King William St, Hamilton, ON",
+    "position": {
+      "lat": 43.257491,
+      "lng": -79.867775
+    },
+    "category": "cafe",
+    "notes": "Downtown café option near transit.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "30 King William St, Hamilton, ON",
+      "displayName": "King William Street, Landsdale, Hamilton, Golden Horseshoe, Ontario, L8N 1E3, Canada",
+      "at": "2026-02-18T16:26:21.469Z"
+    }
+  },
+  {
+    "id": "gore-park",
+    "name": "Gore Park (quiet outdoor break)",
+    "address": "1 Hughson St N, Hamilton, ON",
+    "position": {
+      "lat": 43.2564719,
+      "lng": -79.8678285
+    },
+    "category": "quiet",
+    "notes": "Good for a reset break; outdoor seating nearby.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "1 Hughson St N, Hamilton, ON",
+      "displayName": "1, Hughson Street North, Beasley, Hamilton, Golden Horseshoe, Ontario, L8R 3N8, Canada",
+      "at": "2026-02-18T16:26:22.747Z"
+    }
+  },
+  {
+    "id": "bayfront-park",
+    "name": "Bayfront Park",
+    "address": "200 Harbour Front Dr, Hamilton, ON",
+    "position": {
+      "lat": 43.2693655,
+      "lng": -79.8698371
+    },
+    "category": "quiet",
+    "notes": "Peaceful spot to read/walk when you need air.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "200 Harbour Front Dr, Hamilton, ON",
+      "displayName": "200, Harbour Front Drive, North End West, Hamilton, Golden Horseshoe, Ontario, L8L 1B5, Canada",
+      "at": "2026-02-18T16:26:24.438Z"
+    }
+  },
+  {
+    "id": "jackson-square",
+    "name": "Jackson Square (indoors seating areas)",
+    "address": "2 King St W, Hamilton, ON",
+    "position": {
+      "lat": 43.2569936,
+      "lng": -79.8691791
+    },
+    "category": "late",
+    "notes": "Indoors + central. Can work as an evening fallback.",
+    "geocodeMeta": {
+      "provider": "nominatim",
+      "query": "2 King St W, Hamilton, ON",
+      "displayName": "2, King Street West, Hess Village, Central, Hamilton, Golden Horseshoe, Ontario, L8P 4X8, Canada",
+      "at": "2026-02-18T16:26:26.283Z"
+    }
+  }
 ]
