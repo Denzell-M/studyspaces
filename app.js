@@ -6,6 +6,16 @@
 const GOOGLE_MAPS_API_KEY = "AIzaSyDVkxCzBOw-0Vo5CorJAxDWSDLXeYethq4";
 const GOOGLE_MAPS_MAP_ID = "4a1781507e7e91ecb60c6861";
 
+// Simple app-level state so later features (filters, directions, etc.) can access markers.
+const appState = {
+  map: null,
+  infoWindow: null,
+  // Seed/location markers
+  placeMarkers: [], // [{ id, category, place, marker }]
+  placeMarkersById: new Map(),
+  placeMarkersByCategory: new Map(),
+};
+
 async function loadPlaces() {
   const res = await fetch("./data/locationSeed.json");
   if (!res.ok) {
@@ -56,6 +66,11 @@ function assertMapEl() {
 function createMap(places) {
   const mapEl = assertMapEl();
 
+  // Reset marker state each time we build the map
+  appState.placeMarkers = [];
+  appState.placeMarkersById = new Map();
+  appState.placeMarkersByCategory = new Map();
+
   // Default map load location
   const center = places?.[0]?.position ?? { lat: 43.2557, lng: -79.8711 };
 
@@ -66,6 +81,8 @@ function createMap(places) {
   });
 
   const info = new google.maps.InfoWindow();
+  appState.map = map;
+  appState.infoWindow = info;
 
   for (const place of places) {
     if (!place?.position) continue;
@@ -75,6 +92,20 @@ function createMap(places) {
       position: place.position,
       title: place.name,
     });
+
+    // Store marker references so we can filter/show/hide later.
+    const record = {
+      id: place.id,
+      category: place.category ?? "uncategorized",
+      place,
+      marker,
+    };
+    appState.placeMarkers.push(record);
+    if (place.id) appState.placeMarkersById.set(place.id, record);
+    const cat = record.category;
+    const list = appState.placeMarkersByCategory.get(cat) ?? [];
+    list.push(record);
+    appState.placeMarkersByCategory.set(cat, list);
 
     marker.addListener("click", () => {
       info.setContent(`
