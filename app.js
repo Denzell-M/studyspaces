@@ -6,15 +6,14 @@
 const GOOGLE_MAPS_API_KEY = "AIzaSyDVkxCzBOw-0Vo5CorJAxDWSDLXeYethq4";
 const GOOGLE_MAPS_MAP_ID = "4a1781507e7e91ecb60c6861";
 
-// Simple app-level state so later features (filters, directions, etc.) can access markers.
 const appState = {
   map: null,
   infoWindow: null,
-  // Seed/location markers
   placeMarkers: [], // [{ id, category, place, marker }]
   placeMarkersById: new Map(),
   placeMarkersByCategory: new Map(),
   currentFilter: "all",
+  customMarkers: [], // Same structure as placeMarkers
 };
 
 async function loadPlaces() {
@@ -22,6 +21,16 @@ async function loadPlaces() {
   if (!res.ok) {
     throw new Error(
       `Failed to load JSON (${res.status} ${res.statusText}) at ./data/locationSeed.json`,
+    );
+  }
+  return res.json();
+}
+
+async function loadCustomMarkers() {
+  const res = await fetch("./data/customMarker.json");
+  if (!res.ok) {
+    throw new Error(
+      `Failed to load JSON (${res.status} ${res.statusText}) at ./data/customMarker.json`,
     );
   }
   return res.json();
@@ -71,6 +80,7 @@ function createMap(places) {
   appState.placeMarkers = [];
   appState.placeMarkersById = new Map();
   appState.placeMarkersByCategory = new Map();
+  appState.customMarkers = [];
 
   // Default map load location
   const center = places?.[0]?.position ?? { lat: 43.2557, lng: -79.8711 };
@@ -94,7 +104,7 @@ function createMap(places) {
       title: place.name,
     });
 
-    // Store marker references so we can filter/show/hide later.
+    // Store marker references for filter/show/hide later.
     const record = {
       id: place.id,
       category: place.category ?? "uncategorized",
@@ -121,6 +131,47 @@ function createMap(places) {
   }
 
   return map;
+}
+
+function addCustomMarker(map, infoWindow, place) {
+  if (!place?.position) return;
+
+  const marker = new google.maps.Marker({
+    map,
+    position: place.position,
+    title: place.name,
+    // Green marker icon for user/custom markers
+    icon: {
+      url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+    },
+  });
+
+  marker.addListener("click", () => {
+    infoWindow.setContent(`
+      <div style="max-width:240px">
+        <div style="font-weight:600">${place.name ?? "Custom marker"}</div>
+        <div style="font-size:0.9em">${place.address ?? ""}</div>
+        <div style="margin-top:6px">${place.notes ?? ""}</div>
+      </div>
+    `);
+    infoWindow.open({ anchor: marker, map });
+  });
+
+  const rec = {
+    id: place.id,
+    category: place.category ?? "uncategorized",
+    place,
+    marker,
+  };
+
+  appState.customMarkers.push(rec);
+  // Filtering works consistently
+  appState.placeMarkers.push(rec);
+  if (place.id) appState.placeMarkersById.set(place.id, rec);
+  const cat = rec.category;
+  const list = appState.placeMarkersByCategory.get(cat) ?? [];
+  list.push(rec);
+  appState.placeMarkersByCategory.set(cat, list);
 }
 
 function applyFilter(category) {
@@ -293,11 +344,20 @@ function wireMyLocationUI(map) {
 
 async function boot() {
   try {
-    const places = await loadPlaces();
+    const [places, customPlaces] = await Promise.all([
+      loadPlaces(),
+      loadCustomMarkers(),
+    ]);
 
     await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY);
 
     const map = createMap(places);
+
+    // Render custom/user markers (green)
+    for (const place of customPlaces ?? []) {
+      addCustomMarker(map, appState.infoWindow, place);
+    }
+
     wireFilterUI();
     wireGeocodeUI(map);
     wireMyLocationUI(map);
