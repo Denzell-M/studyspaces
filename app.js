@@ -399,10 +399,10 @@ function wireCustomMarkerUI() {
   renderJson();
 
   geoBtn?.addEventListener("click", async () => {
-    // Prefer the explicit search field if provided; otherwise fall back to the Name field.
-    const query = String(addressEl?.value ?? "").trim() || String(nameEl.value ?? "").trim();
+    // Search by the Name field only.
+    const query = String(nameEl.value ?? "").trim();
     if (!query) {
-      setStatus("Enter a name or search text first.");
+      setStatus("Enter a name first.");
       return;
     }
 
