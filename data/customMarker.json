@@ -13,5 +13,19 @@
       "createdAt": "2026-02-19T03:45:42.228Z",
       "source": "user"
     }
+  },
+  {
+    "id": "cafe-costco-wholesale-ancaster-1771540202700",
+    "name": "costco wholesale, ancaster",
+    "category": "cafe",
+    "notes": "a place for a good hotdog",
+    "position": {
+      "lat": 43.23008309999999,
+      "lng": -79.9476244
+    },
+    "meta": {
+      "createdAt": "2026-02-19T22:30:02.700Z",
+      "source": "user"
+    }
   }
 ]
