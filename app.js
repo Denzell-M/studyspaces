@@ -13,7 +13,9 @@ const appState = {
   placeMarkersById: new Map(),
   placeMarkersByCategory: new Map(),
   currentFilter: "all",
-  customMarkers: [], // Same structure as placeMarkers
+  customMarkers: [], // [{ id, category, place, marker }]
+  customPlaces: [], // raw place objects loaded + user-added
+  userLocation: null, // { lat, lng }
 };
 
 async function loadPlaces() {
@@ -308,6 +310,17 @@ function wireMyLocationUI(map) {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
 
+        // Save user location so other UI (like custom marker creation) can reuse it
+        appState.userLocation = { lat, lng };
+
+        // If the custom marker coordinate inputs exist, pre-fill them (optional convenience)
+        const addLatEl = document.getElementById("addLat");
+        const addLngEl = document.getElementById("addLng");
+        if (addLatEl && addLngEl) {
+          addLatEl.value = String(lat);
+          addLngEl.value = String(lng);
+        }
+
         setStatus("");
         map.panTo({ lat, lng });
         map.setZoom(15);
@@ -353,6 +366,9 @@ async function boot() {
 
     const map = createMap(places);
 
+    // Keep the raw custom places for exporting/editing
+    appState.customPlaces = Array.isArray(customPlaces) ? [...customPlaces] : [];
+
     // Render custom/user markers (green)
     for (const place of customPlaces ?? []) {
       addCustomMarker(map, appState.infoWindow, place);
@@ -361,6 +377,7 @@ async function boot() {
     wireFilterUI();
     wireGeocodeUI(map);
     wireMyLocationUI(map);
+    wireCustomMarkerUI();
 
     setStatus("");
   } catch (err) {
