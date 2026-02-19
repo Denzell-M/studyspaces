@@ -30,10 +30,10 @@ async function loadPlaces() {
 }
 
 async function loadCustomMarkers() {
-  const res = await fetch("./data/customMarker.json");
+  const res = await fetch("/api/customMarkers");
   if (!res.ok) {
     throw new Error(
-      `Failed to load JSON (${res.status} ${res.statusText}) at ./data/customMarker.json`,
+      `Failed to load JSON (${res.status} ${res.statusText}) at /api/customMarkers`,
     );
   }
   return res.json();
@@ -42,6 +42,23 @@ async function loadCustomMarkers() {
 function setStatus(message) {
   const el = document.getElementById("status");
   if (el) el.textContent = message;
+}
+
+async function saveCustomMarker(marker) {
+  const res = await fetch("/api/customMarkers", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(marker),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Failed to save marker (${res.status} ${res.statusText}) ${text}`.trim(),
+    );
+  }
+
+  return res.json();
 }
 
 function loadGoogleMapsScript(apiKey) {
@@ -77,45 +94,10 @@ function assertMapEl() {
 }
 
 
-// Forward geocode (name/address -> coordinates) using OpenStreetMap Nominatim.
-// This avoids needing Google Geocoding API/billing.
-async function geocodeNominatim(query) {
-  const url = new URL("https://nominatim.openstreetmap.org/search");
-  url.searchParams.set("format", "json");
-  url.searchParams.set("limit", "1");
-  url.searchParams.set("q", query);
-  // Keep results local-ish (prevents results from other countries for generic names)
-  url.searchParams.set("countrycodes", "ca");
-
-  const res = await fetch(url, {
-    headers: {
-      "Accept-Language": "en",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Nominatim HTTP ${res.status} ${res.statusText}`);
-  }
-
-  const data = await res.json();
-  const best = data?.[0];
-  if (!best) return null;
-
-  return {
-    lat: Number.parseFloat(best.lat),
-    lng: Number.parseFloat(best.lon),
-    displayName: best.display_name,
-  };
-}
-
-// --- Geocoding strategy ------------------------------------------------------
-// Test Google Geocoder first (better POI/business name matching). If it fails
-// due to billing/API-key restrictions, automatically fall back to Nominatim.
-//
-// Flip to false to force Nominatim-only:
-const USE_GOOGLE_GEOCODER = true;
-
-function geocodeGoogle(query) {
+// --- Geocoding (Google only) -------------------------------------------------
+// Uses Google Maps JavaScript API Geocoder.
+// Note: requires Geocoding API enabled + (usually) billing.
+function geocodePlace(query) {
   return new Promise((resolve, reject) => {
     try {
       if (!window.google?.maps?.Geocoder) {
@@ -144,24 +126,6 @@ function geocodeGoogle(query) {
       reject(err);
     }
   });
-}
-
-async function geocodePlace(query) {
-  // Optional bias: assume most searches are in/near Hamilton.
-  // This helps both Google and Nominatim with generic names.
-  const biasedQuery = `${query}, Hamilton, ON, Canada`;
-
-  if (USE_GOOGLE_GEOCODER) {
-    try {
-      return await geocodeGoogle(biasedQuery);
-    } catch (err) {
-      console.warn("Google geocode failed; falling back to Nominatim", err);
-    }
-  }
-
-  const res = await geocodeNominatim(biasedQuery);
-  if (!res) return null;
-  return { ...res, provider: "nominatim" };
 }
 
 function createMap(places) {
@@ -428,8 +392,7 @@ function wireCustomMarkerUI() {
   const lngEl = document.getElementById("addLng");
   const useMyCoordsBtn = document.getElementById("useMyCoordsBtn");
   const addBtn = document.getElementById("addMarkerBtn");
-  const exportBtn = document.getElementById("exportCustomJsonBtn");
-  const outEl = document.getElementById("customJsonOut");
+  const saveMetaEl = document.getElementById("customSaveMeta");
   const addressEl = document.getElementById("addAddress");
   const geoBtn = document.getElementById("addGeoBtn");
   const geoMetaEl = document.getElementById("addGeoMeta");
@@ -442,19 +405,14 @@ function wireCustomMarkerUI() {
     !latEl ||
     !lngEl ||
     !useMyCoordsBtn ||
-    !addBtn ||
-    !exportBtn ||
-    !outEl
+    !addBtn
   ) {
     return;
   }
 
-  function renderJson() {
-    outEl.value = JSON.stringify(appState.customPlaces, null, 2);
+  if (saveMetaEl) {
+    saveMetaEl.textContent = "";
   }
-
-  // show initial JSON
-  renderJson();
 
   geoBtn?.addEventListener("click", async () => {
     // Search by the Name field only.
@@ -468,7 +426,8 @@ function wireCustomMarkerUI() {
       setStatus("");
       if (geoMetaEl) geoMetaEl.textContent = "Searching…";
 
-      const result = await geocodePlace(query);
+      // Bias towards your project location to reduce incorrect global matches.
+      const result = await geocodePlace(`${query}, Hamilton, ON, Canada`);
       if (!result) {
         if (geoMetaEl) geoMetaEl.textContent = "No results found.";
         setStatus("No results found.");
@@ -479,6 +438,12 @@ function wireCustomMarkerUI() {
       lngEl.value = String(result.lng);
       if (geoMetaEl) {
         geoMetaEl.textContent = `${result.displayName} (${result.provider})`;
+      }
+
+      // Pan/zoom the map to the searched location
+      if (appState.map) {
+        appState.map.panTo({ lat: result.lat, lng: result.lng });
+        appState.map.setZoom(16);
       }
     } catch (err) {
       console.error(err);
@@ -498,7 +463,7 @@ function wireCustomMarkerUI() {
     lngEl.value = String(appState.userLocation.lng);
   });
 
-  addBtn.addEventListener("click", () => {
+  addBtn.addEventListener("click", async () => {
     const name = String(nameEl.value ?? "").trim();
     const category = String(categoryEl.value ?? "uncategorized").trim();
     const notes = String(notesEl.value ?? "").trim();
@@ -522,8 +487,19 @@ function wireCustomMarkerUI() {
 
     setStatus("");
 
+    const uid = String(Date.now());
+    const slug = (s) =>
+      String(s ?? "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "")
+        .slice(0, 40);
+
+    const descriptiveId = `${slug(category)}-${slug(name)}-${uid}`;
+
     const place = {
-      id: `custom-${Date.now()}`,
+      id: descriptiveId,
       name,
       category,
       notes,
@@ -532,17 +508,29 @@ function wireCustomMarkerUI() {
       meta: { createdAt: new Date().toISOString(), source: "user" },
     };
 
-    addCustomMarker(appState.map, appState.infoWindow, place);
-    appState.customPlaces.push(place);
-    renderJson();
+    try {
+      if (saveMetaEl) saveMetaEl.textContent = "Saving…";
+
+      // Persist to data/customMarker.json via server API
+      const saved = await saveCustomMarker(place);
+
+      // Add to map + local state
+      addCustomMarker(appState.map, appState.infoWindow, saved);
+      appState.customPlaces.push(saved);
+
+      if (saveMetaEl) {
+        saveMetaEl.textContent = "Saved to data/customMarker.json.";
+      }
+    } catch (err) {
+      console.error(err);
+      setStatus(err?.message ?? String(err));
+      if (saveMetaEl) saveMetaEl.textContent = "Save failed.";
+      return;
+    }
 
     // Update filters + directions list
     applyFilter(appState.currentFilter);
     populateDirectionsDestinations();
-  });
-
-  exportBtn.addEventListener("click", () => {
-    renderJson();
   });
 }
 
