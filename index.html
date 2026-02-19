@@ -121,17 +121,16 @@
           </div>
 
           <div class="col-12">
-            <label for="addAddress" class="form-label mb-1">Search (optional)</label>
+            <label for="addAddress" class="form-label mb-1">Address (optional)</label>
             <input
               id="addAddress"
               class="form-control"
               type="text"
-              placeholder="e.g. 'CoCo Fresh Tea' or '1548 Main St W, Hamilton'"
+              placeholder="e.g. 1548 Main St W, Hamilton, ON"
               autocomplete="off"
             />
             <div class="form-text">
-              Optional: use this to look up coordinates (lat/lng) by <strong>name</strong> or <strong>address</strong>.
-              If left blank, the search will use the <strong>Name</strong> field.
+              Optional metadata for the marker. Coordinates are looked up using the <strong>Name</strong> field.
             </div>
           </div>
 
@@ -175,7 +174,7 @@
 
           <div class="col-12 d-flex gap-2 flex-wrap">
             <button id="addGeoBtn" class="btn btn-outline-primary" type="button">
-              Search lat/lng
+              Search lat/lng (by name)
             </button>
             <button id="useMyCoordsBtn" class="btn btn-outline-primary" type="button">
               Use my location coords
