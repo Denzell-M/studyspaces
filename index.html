@@ -92,6 +92,62 @@
           <div class="form-text mt-2" id="geoMeta"></div>
         </div>
       </div>
+
+      <hr />
+
+      <div class="mb-5">
+        <h3 class="h6">Add a location (custom marker)</h3>
+        <p class="text-muted mb-2">
+          Add your own location. It will show as a <strong>green</strong> marker.
+          (Saving to <code>data/customMarker.json</code> requires a backend; for now we’ll
+          generate the JSON you can copy/paste.)
+        </p>
+
+        <div class="row g-2">
+          <div class="col-12 col-md-6">
+            <label for="addName" class="form-label mb-1">Name</label>
+            <input id="addName" class="form-control" type="text" placeholder="e.g. CoCo Fresh Tea" />
+          </div>
+          <div class="col-12 col-md-6">
+            <label for="addCategory" class="form-label mb-1">Category</label>
+            <select id="addCategory" class="form-select">
+              <option value="cafe" selected>Cafe</option>
+              <option value="library">Library</option>
+              <option value="quiet">Quiet</option>
+              <option value="study">Study</option>
+              <option value="late">Late</option>
+            </select>
+          </div>
+
+          <div class="col-12">
+            <label for="addAddress" class="form-label mb-1">Address</label>
+            <input
+              id="addAddress"
+              class="form-control"
+              type="text"
+              placeholder="e.g. 1548 Main St W, Hamilton, ON"
+              autocomplete="off"
+            />
+            <div class="form-text">We’ll geocode this address to get lat/lng.</div>
+          </div>
+
+          <div class="col-12">
+            <label for="addNotes" class="form-label mb-1">Notes</label>
+            <textarea id="addNotes" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+          </div>
+
+          <div class="col-12 d-flex gap-2 flex-wrap">
+            <button id="addMarkerBtn" class="btn btn-success" type="button">Add green marker</button>
+            <button id="exportCustomJsonBtn" class="btn btn-outline-secondary" type="button">Export customMarker.json</button>
+          </div>
+
+          <div class="col-12">
+            <label for="customJsonOut" class="form-label mb-1">Generated JSON</label>
+            <textarea id="customJsonOut" class="form-control" rows="6" readonly></textarea>
+            <div class="form-text">Copy/paste into <code>data/customMarker.json</code>.</div>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>
