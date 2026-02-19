@@ -84,6 +84,8 @@ async function geocodeNominatim(query) {
   url.searchParams.set("format", "json");
   url.searchParams.set("limit", "1");
   url.searchParams.set("q", query);
+  // Keep results local-ish (prevents results from other countries for generic names)
+  url.searchParams.set("countrycodes", "ca");
 
   const res = await fetch(url, {
     headers: {
@@ -104,6 +106,62 @@ async function geocodeNominatim(query) {
     lng: Number.parseFloat(best.lon),
     displayName: best.display_name,
   };
+}
+
+// --- Geocoding strategy ------------------------------------------------------
+// Test Google Geocoder first (better POI/business name matching). If it fails
+// due to billing/API-key restrictions, automatically fall back to Nominatim.
+//
+// Flip to false to force Nominatim-only:
+const USE_GOOGLE_GEOCODER = true;
+
+function geocodeGoogle(query) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!window.google?.maps?.Geocoder) {
+        reject(new Error("Google Geocoder not available (Maps JS not loaded?)"));
+        return;
+      }
+
+      const geocoder = new google.maps.Geocoder();
+      // Using `address` works for both addresses and many POI/business names.
+      geocoder.geocode({ address: query }, (results, status) => {
+        if (status === "OK" && results && results.length > 0) {
+          const best = results[0];
+          const loc = best.geometry.location;
+          resolve({
+            lat: loc.lat(),
+            lng: loc.lng(),
+            displayName: best.formatted_address ?? query,
+            provider: "google",
+          });
+          return;
+        }
+
+        reject(new Error(`GOOGLE_GEOCODE: ${status}`));
+      });
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+async function geocodePlace(query) {
+  // Optional bias: assume most searches are in/near Hamilton.
+  // This helps both Google and Nominatim with generic names.
+  const biasedQuery = `${query}, Hamilton, ON, Canada`;
+
+  if (USE_GOOGLE_GEOCODER) {
+    try {
+      return await geocodeGoogle(biasedQuery);
+    } catch (err) {
+      console.warn("Google geocode failed; falling back to Nominatim", err);
+    }
+  }
+
+  const res = await geocodeNominatim(biasedQuery);
+  if (!res) return null;
+  return { ...res, provider: "nominatim" };
 }
 
 function createMap(places) {
@@ -410,7 +468,7 @@ function wireCustomMarkerUI() {
       setStatus("");
       if (geoMetaEl) geoMetaEl.textContent = "Searching…";
 
-      const result = await geocodeNominatim(query);
+      const result = await geocodePlace(query);
       if (!result) {
         if (geoMetaEl) geoMetaEl.textContent = "No results found.";
         setStatus("No results found.");
@@ -419,7 +477,9 @@ function wireCustomMarkerUI() {
 
       latEl.value = String(result.lat);
       lngEl.value = String(result.lng);
-      if (geoMetaEl) geoMetaEl.textContent = result.displayName;
+      if (geoMetaEl) {
+        geoMetaEl.textContent = `${result.displayName} (${result.provider})`;
+      }
     } catch (err) {
       console.error(err);
       if (geoMetaEl) geoMetaEl.textContent = "";
