@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "id": "coco-fresh-tea-burlington",
+    "name": "Burlington Coco",
+    "category": "cafe",
+    "notes": "",
+    "address": "Coco Fresh Tea, Burlington",
+    "position": {
+      "lat": 43.3941508,
+      "lng": -79.7916544
+    },
+    "meta": {
+      "createdAt": "2026-02-19T03:45:42.228Z",
+      "source": "user"
+    }
+  }
+]
