@@ -76,6 +76,36 @@ function assertMapEl() {
   return mapEl;
 }
 
+
+// Forward geocode (name/address -> coordinates) using OpenStreetMap Nominatim.
+// This avoids needing Google Geocoding API/billing.
+async function geocodeNominatim(query) {
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.searchParams.set("format", "json");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("q", query);
+
+  const res = await fetch(url, {
+    headers: {
+      "Accept-Language": "en",
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Nominatim HTTP ${res.status} ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  const best = data?.[0];
+  if (!best) return null;
+
+  return {
+    lat: Number.parseFloat(best.lat),
+    lng: Number.parseFloat(best.lon),
+    displayName: best.display_name,
+  };
+}
+
 function createMap(places) {
   const mapEl = assertMapEl();
 
@@ -328,6 +358,25 @@ function wireCustomMarkerUI() {
   // show initial JSON
   renderJson();
 
+  let previewMarker = null;
+  function showPreviewMarker(lat, lng, title) {
+    if (!appState.map) return;
+
+    const pos = { lat, lng };
+    appState.map.panTo(pos);
+    appState.map.setZoom(16);
+
+    if (previewMarker) previewMarker.setMap(null);
+    previewMarker = new google.maps.Marker({
+      map: appState.map,
+      position: pos,
+      title: title ?? "Preview",
+      icon: {
+        url: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
+      },
+    });
+  }
+
   geoBtn?.addEventListener("click", async () => {
     // Prefer the explicit search field if provided; otherwise fall back to the Name field.
     const query = String(addressEl?.value ?? "").trim() || String(nameEl.value ?? "").trim();
@@ -350,6 +399,8 @@ function wireCustomMarkerUI() {
       latEl.value = String(result.lat);
       lngEl.value = String(result.lng);
       if (geoMetaEl) geoMetaEl.textContent = result.displayName;
+
+      showPreviewMarker(result.lat, result.lng, result.displayName);
     } catch (err) {
       console.error(err);
       if (geoMetaEl) geoMetaEl.textContent = "";
@@ -366,7 +417,23 @@ function wireCustomMarkerUI() {
     setStatus("");
     latEl.value = String(appState.userLocation.lat);
     lngEl.value = String(appState.userLocation.lng);
+
+    showPreviewMarker(
+      appState.userLocation.lat,
+      appState.userLocation.lng,
+      "Your location (preview)",
+    );
   });
+
+  // If the user manually types coordinates, show a preview marker when both are valid.
+  function maybePreviewFromInputs() {
+    const lat = Number.parseFloat(String(latEl.value ?? ""));
+    const lng = Number.parseFloat(String(lngEl.value ?? ""));
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
+    showPreviewMarker(lat, lng, "Custom marker (preview)");
+  }
+  latEl.addEventListener("change", maybePreviewFromInputs);
+  lngEl.addEventListener("change", maybePreviewFromInputs);
 
   addBtn.addEventListener("click", () => {
     const name = String(nameEl.value ?? "").trim();
@@ -405,6 +472,12 @@ function wireCustomMarkerUI() {
     addCustomMarker(appState.map, appState.infoWindow, place);
     appState.customPlaces.push(place);
     renderJson();
+
+    // Remove preview marker after successfully adding a real marker.
+    if (previewMarker) {
+      previewMarker.setMap(null);
+      previewMarker = null;
+    }
 
     // Update filters + directions list
     applyFilter(appState.currentFilter);
