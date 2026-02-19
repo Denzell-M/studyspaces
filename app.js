@@ -12,11 +12,11 @@ const appState = {
   infoWindow: null,
   placeMarkers: [], // [{ id, category, place, marker }]
   placeMarkersById: new Map(),
-  placeMarkersByCategory: new Map(),
   currentFilter: "all",
-  customMarkers: [], // [{ id, category, place, marker }]
   customPlaces: [], // raw place objects loaded + user-added
   userLocation: null, // { lat, lng }
+  directionsRenderer: null,
+  directionsService: null,
 };
 
 async function loadPlaces() {
@@ -112,8 +112,6 @@ function createMap(places) {
   // Reset marker state each time we build the map
   appState.placeMarkers = [];
   appState.placeMarkersById = new Map();
-  appState.placeMarkersByCategory = new Map();
-  appState.customMarkers = [];
 
   // Default map load location
   const center = places?.[0]?.position ?? { lat: 43.2557, lng: -79.8711 };
@@ -127,6 +125,14 @@ function createMap(places) {
   const info = new google.maps.InfoWindow();
   appState.map = map;
   appState.infoWindow = info;
+
+  // Directions support (rendered on the map)
+  appState.directionsService = new google.maps.DirectionsService();
+  appState.directionsRenderer = new google.maps.DirectionsRenderer({
+    map,
+    suppressMarkers: false,
+    preserveViewport: false,
+  });
 
   for (const place of places) {
     if (!place?.position) continue;
@@ -146,16 +152,12 @@ function createMap(places) {
     };
     appState.placeMarkers.push(record);
     if (place.id) appState.placeMarkersById.set(place.id, record);
-    const cat = record.category;
-    const list = appState.placeMarkersByCategory.get(cat) ?? [];
-    list.push(record);
-    appState.placeMarkersByCategory.set(cat, list);
 
     marker.addListener("click", () => {
       info.setContent(`
         <div style="max-width:240px">
           <div style="font-weight:600">${place.name}</div>
-          <div style="font-size:0.9em">${place.address ?? ""}</div>
+          <div style="font-size:0.9em">Category: ${place.category ?? ""}</div>
           <div style="margin-top:6px">${place.notes ?? ""}</div>
         </div>
       `);
@@ -164,6 +166,49 @@ function createMap(places) {
   }
 
   return map;
+}
+
+async function showDirectionsTo(dest) {
+  const metaEl = document.getElementById("directionsMeta");
+  if (!appState.userLocation) {
+    if (metaEl) metaEl.textContent = "Click 'Use my location' first.";
+    setStatus("Click 'Use my location' first.");
+    return;
+  }
+
+  if (!appState.directionsService || !appState.directionsRenderer) {
+    setStatus("Directions service is not ready.");
+    return;
+  }
+
+  const origin = appState.userLocation;
+
+  try {
+    if (metaEl) metaEl.textContent = "Calculating route…";
+
+    const res = await appState.directionsService.route({
+      origin,
+      destination: dest,
+      travelMode: google.maps.TravelMode.WALKING,
+    });
+
+    appState.directionsRenderer.setDirections(res);
+    if (metaEl) metaEl.textContent = "Route shown on map.";
+  } catch (err) {
+    console.error(err);
+    if (metaEl) metaEl.textContent = "";
+    // Surface the actual reason in the UI (usually REQUEST_DENIED / API not enabled)
+    setStatus(`Failed to calculate directions: ${err?.message ?? String(err)}`);
+  }
+}
+
+function clearDirections() {
+  const metaEl = document.getElementById("directionsMeta");
+  if (appState.directionsRenderer) {
+    // Clear any rendered route
+    appState.directionsRenderer.set("directions", null);
+  }
+  if (metaEl) metaEl.textContent = "";
 }
 
 function addCustomMarker(map, infoWindow, place) {
@@ -183,7 +228,7 @@ function addCustomMarker(map, infoWindow, place) {
     infoWindow.setContent(`
       <div style="max-width:240px">
         <div style="font-weight:600">${place.name ?? "Custom marker"}</div>
-        <div style="font-size:0.9em">${place.address ?? ""}</div>
+        <div style="font-size:0.9em">Category: ${place.category ?? ""}</div>
         <div style="margin-top:6px">${place.notes ?? ""}</div>
       </div>
     `);
@@ -197,14 +242,9 @@ function addCustomMarker(map, infoWindow, place) {
     marker,
   };
 
-  appState.customMarkers.push(rec);
-  // Filtering works consistently
+  // Include custom markers in the same collection so filtering/directions work.
   appState.placeMarkers.push(rec);
   if (place.id) appState.placeMarkersById.set(place.id, rec);
-  const cat = rec.category;
-  const list = appState.placeMarkersByCategory.get(cat) ?? [];
-  list.push(rec);
-  appState.placeMarkersByCategory.set(cat, list);
 }
 
 function applyFilter(category) {
@@ -358,25 +398,6 @@ function wireCustomMarkerUI() {
   // show initial JSON
   renderJson();
 
-  let previewMarker = null;
-  function showPreviewMarker(lat, lng, title) {
-    if (!appState.map) return;
-
-    const pos = { lat, lng };
-    appState.map.panTo(pos);
-    appState.map.setZoom(16);
-
-    if (previewMarker) previewMarker.setMap(null);
-    previewMarker = new google.maps.Marker({
-      map: appState.map,
-      position: pos,
-      title: title ?? "Preview",
-      icon: {
-        url: "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png",
-      },
-    });
-  }
-
   geoBtn?.addEventListener("click", async () => {
     // Prefer the explicit search field if provided; otherwise fall back to the Name field.
     const query = String(addressEl?.value ?? "").trim() || String(nameEl.value ?? "").trim();
@@ -399,8 +420,6 @@ function wireCustomMarkerUI() {
       latEl.value = String(result.lat);
       lngEl.value = String(result.lng);
       if (geoMetaEl) geoMetaEl.textContent = result.displayName;
-
-      showPreviewMarker(result.lat, result.lng, result.displayName);
     } catch (err) {
       console.error(err);
       if (geoMetaEl) geoMetaEl.textContent = "";
@@ -417,23 +436,7 @@ function wireCustomMarkerUI() {
     setStatus("");
     latEl.value = String(appState.userLocation.lat);
     lngEl.value = String(appState.userLocation.lng);
-
-    showPreviewMarker(
-      appState.userLocation.lat,
-      appState.userLocation.lng,
-      "Your location (preview)",
-    );
   });
-
-  // If the user manually types coordinates, show a preview marker when both are valid.
-  function maybePreviewFromInputs() {
-    const lat = Number.parseFloat(String(latEl.value ?? ""));
-    const lng = Number.parseFloat(String(lngEl.value ?? ""));
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return;
-    showPreviewMarker(lat, lng, "Custom marker (preview)");
-  }
-  latEl.addEventListener("change", maybePreviewFromInputs);
-  lngEl.addEventListener("change", maybePreviewFromInputs);
 
   addBtn.addEventListener("click", () => {
     const name = String(nameEl.value ?? "").trim();
@@ -473,12 +476,6 @@ function wireCustomMarkerUI() {
     appState.customPlaces.push(place);
     renderJson();
 
-    // Remove preview marker after successfully adding a real marker.
-    if (previewMarker) {
-      previewMarker.setMap(null);
-      previewMarker = null;
-    }
-
     // Update filters + directions list
     applyFilter(appState.currentFilter);
     populateDirectionsDestinations();
@@ -511,6 +508,7 @@ function populateDirectionsDestinations() {
 function wireDirectionsUI() {
   const selectEl = document.getElementById("directionsTo");
   const btn = document.getElementById("directionsBtn");
+  const clearBtn = document.getElementById("clearDirectionsBtn");
   const metaEl = document.getElementById("directionsMeta");
   if (!selectEl || !btn) return;
 
@@ -534,14 +532,11 @@ function wireDirectionsUI() {
       return;
     }
 
-    const origin = appState.userLocation;
-    const url = new URL("https://www.google.com/maps/dir/");
-    url.searchParams.set("api", "1");
-    url.searchParams.set("origin", `${origin.lat},${origin.lng}`);
-    url.searchParams.set("destination", `${dest.lat},${dest.lng}`);
+    showDirectionsTo(dest);
+  });
 
-    if (metaEl) metaEl.textContent = "Opening directions in a new tab…";
-    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  clearBtn?.addEventListener("click", () => {
+    clearDirections();
   });
 }
 
