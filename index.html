@@ -88,48 +88,6 @@
 
       <div id="map" class="rounded border"></div>
 
-      <div class="mt-3 mb-5">
-        <h3 class="h6">Find precise coordinates</h3>
-        <p class="text-muted mb-2">
-          Enter a place name or address to get a more accurate
-          latitude/longitude.
-        </p>
-
-        <div class="row g-2 align-items-end">
-          <div class="col-12 col-md-8">
-            <label for="geoQuery" class="form-label mb-1"
-              >Place name / address</label
-            >
-            <input
-              id="geoQuery"
-              class="form-control"
-              type="text"
-              placeholder="e.g. Mills Memorial Library, Hamilton"
-              autocomplete="off"
-            />
-          </div>
-          <div class="col-12 col-md-4 d-grid">
-            <button id="geoBtn" class="btn btn-primary" type="button">
-              Get lat/lng
-            </button>
-          </div>
-        </div>
-
-        <div class="mt-3">
-          <div class="row g-2">
-            <div class="col-12 col-md-6">
-              <label class="form-label mb-1">Latitude</label>
-              <input id="geoLat" class="form-control" type="text" readonly />
-            </div>
-            <div class="col-12 col-md-6">
-              <label class="form-label mb-1">Longitude</label>
-              <input id="geoLng" class="form-control" type="text" readonly />
-            </div>
-          </div>
-          <div class="form-text mt-2" id="geoMeta"></div>
-        </div>
-      </div>
-
       <hr />
 
       <div class="mb-5">
@@ -160,6 +118,21 @@
               <option value="study">Study</option>
               <option value="late">Late</option>
             </select>
+          </div>
+
+          <div class="col-12">
+            <label for="addAddress" class="form-label mb-1">Search (optional)</label>
+            <input
+              id="addAddress"
+              class="form-control"
+              type="text"
+              placeholder="e.g. 'CoCo Fresh Tea' or '1548 Main St W, Hamilton'"
+              autocomplete="off"
+            />
+            <div class="form-text">
+              Optional: use this to look up coordinates (lat/lng) by <strong>name</strong> or <strong>address</strong>.
+              If left blank, the search will use the <strong>Name</strong> field.
+            </div>
           </div>
 
           <div class="col-12">
@@ -201,6 +174,9 @@
           </div>
 
           <div class="col-12 d-flex gap-2 flex-wrap">
+            <button id="addGeoBtn" class="btn btn-outline-primary" type="button">
+              Search lat/lng
+            </button>
             <button id="useMyCoordsBtn" class="btn btn-outline-primary" type="button">
               Use my location coords
             </button>
@@ -230,7 +206,38 @@
               Copy/paste into <code>data/customMarker.json</code>.
             </div>
           </div>
+
+          <div class="col-12">
+            <div class="form-text" id="addGeoMeta"></div>
+          </div>
         </div>
+      </div>
+
+      <hr />
+
+      <div class="mb-5">
+        <h3 class="h6">Directions</h3>
+        <p class="text-muted mb-2">
+          Get directions from your <strong>current location marker</strong> to a destination.
+          Select a destination below after clicking <strong>Use my location</strong>.
+        </p>
+
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-8">
+            <label for="directionsTo" class="form-label mb-1">Destination</label>
+            <select id="directionsTo" class="form-select">
+              <option value="" selected>Select a destination…</option>
+              <!-- Filled by app.js -->
+            </select>
+          </div>
+          <div class="col-12 col-md-4 d-grid">
+            <button id="directionsBtn" class="btn btn-outline-success" type="button">
+              Open directions
+            </button>
+          </div>
+        </div>
+
+        <div class="form-text mt-2" id="directionsMeta"></div>
       </div>
     </div>
   </body>
