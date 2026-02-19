@@ -14,6 +14,7 @@ const appState = {
   placeMarkers: [], // [{ id, category, place, marker }]
   placeMarkersById: new Map(),
   placeMarkersByCategory: new Map(),
+  currentFilter: "all",
 };
 
 async function loadPlaces() {
@@ -135,6 +136,37 @@ function applyFilter(category) {
     const shouldShow = selected === "all" || rec.category === selected;
     rec.marker.setMap(shouldShow ? map : null);
   }
+}
+
+function setActiveFilterButton(filterBarEl, selectedFilter) {
+  const selected = (selectedFilter ?? "all").toLowerCase();
+  const buttons = filterBarEl.querySelectorAll("button[data-filter]");
+
+  for (const btn of buttons) {
+    const isActive = (btn.dataset.filter ?? "").toLowerCase() === selected;
+    btn.classList.toggle("btn-dark", isActive);
+    btn.classList.toggle("btn-outline-dark", !isActive);
+  }
+}
+
+function wireFilterUI() {
+  const filterBarEl = document.getElementById("filterBar");
+  if (!filterBarEl) return;
+
+  // Default filter state on load
+  setActiveFilterButton(filterBarEl, "all");
+  applyFilter("all");
+
+  // Event delegation: handle clicks on any filter button
+  filterBarEl.addEventListener("click", (e) => {
+    const btn = e.target.closest?.("button[data-filter]");
+    if (!btn) return;
+
+    const filter = btn.dataset.filter ?? "all";
+    appState.currentFilter = filter;
+    setActiveFilterButton(filterBarEl, filter);
+    applyFilter(filter);
+  });
 }
 
 function geocodeAddress(geocoder, address) {
@@ -266,6 +298,7 @@ async function boot() {
     await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY);
 
     const map = createMap(places);
+    wireFilterUI();
     wireGeocodeUI(map);
     wireMyLocationUI(map);
 
