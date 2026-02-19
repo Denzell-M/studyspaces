@@ -96,7 +96,7 @@
           Add your own location. It will show as a
           <strong>green</strong> marker. (Saving to
           <code>data/customMarker.json</code> requires a backend; for now we’ll
-          generate the JSON you can copy/paste.)
+          save it automatically.)
         </p>
 
         <div class="row g-2">
@@ -182,28 +182,10 @@
             <button id="addMarkerBtn" class="btn btn-success" type="button">
               Add green marker
             </button>
-            <button
-              id="exportCustomJsonBtn"
-              class="btn btn-outline-secondary"
-              type="button"
-            >
-              Export customMarker.json
-            </button>
           </div>
 
           <div class="col-12">
-            <label for="customJsonOut" class="form-label mb-1"
-              >Generated JSON</label
-            >
-            <textarea
-              id="customJsonOut"
-              class="form-control"
-              rows="6"
-              readonly
-            ></textarea>
-            <div class="form-text">
-              Copy/paste into <code>data/customMarker.json</code>.
-            </div>
+            <div class="form-text" id="customSaveMeta"></div>
           </div>
 
           <div class="col-12">
