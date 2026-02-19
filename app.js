@@ -4,7 +4,8 @@
 // - Lets you geocode a typed place/address into precise lat/lng using the UI in index.html
 //
 const GOOGLE_MAPS_API_KEY = "AIzaSyDVkxCzBOw-0Vo5CorJAxDWSDLXeYethq4";
-const GOOGLE_MAPS_MAP_ID = "4a1781507e7e91ecb60c6861";
+// Map ID styling is optional; not required for the assignment.
+// const GOOGLE_MAPS_MAP_ID = "4a1781507e7e91ecb60c6861";
 
 const appState = {
   map: null,
@@ -56,7 +57,7 @@ function loadGoogleMapsScript(apiKey) {
     const script = document.createElement("script");
     script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
       apiKey,
-    )}&callback=initMap&libraries=places&loading=async`;
+    )}&callback=initMap&loading=async`;
     script.async = true;
     script.defer = true;
     script.onerror = () =>
@@ -90,7 +91,7 @@ function createMap(places) {
   const map = new google.maps.Map(mapEl, {
     center,
     zoom: 13,
-    mapId: GOOGLE_MAPS_MAP_ID,
+    // mapId: GOOGLE_MAPS_MAP_ID,
   });
 
   const info = new google.maps.InfoWindow();
@@ -222,74 +223,6 @@ function wireFilterUI() {
   });
 }
 
-function geocodeAddress(geocoder, address) {
-  return new Promise((resolve, reject) => {
-    geocoder.geocode({ address }, (results, status) => {
-      if (status === "OK" && results && results.length > 0) {
-        resolve(results);
-      } else {
-        reject(new Error(`Geocoding failed (${status})`));
-      }
-    });
-  });
-}
-
-function wireGeocodeUI(map) {
-  const btn = document.getElementById("geoBtn");
-  const queryEl = document.getElementById("geoQuery");
-  const latEl = document.getElementById("geoLat");
-  const lngEl = document.getElementById("geoLng");
-  const metaEl = document.getElementById("geoMeta");
-
-  // If the UI isn't present, just skip wiring.
-  if (!btn || !queryEl || !latEl || !lngEl || !metaEl) return;
-
-  const geocoder = new google.maps.Geocoder();
-  let searchMarker = null;
-
-  async function runGeocode() {
-    const query = queryEl.value.trim();
-    if (!query) {
-      setStatus("Enter a place name/address first.");
-      return;
-    }
-
-    try {
-      setStatus("");
-      metaEl.textContent = "Searching…";
-
-      const results = await geocodeAddress(geocoder, query);
-      const best = results[0];
-      const loc = best.geometry.location;
-
-      const lat = loc.lat();
-      const lng = loc.lng();
-
-      latEl.value = lat.toFixed(6);
-      lngEl.value = lng.toFixed(6);
-      metaEl.textContent = best.formatted_address ?? "";
-
-      map.panTo({ lat, lng });
-      map.setZoom(15);
-
-      if (searchMarker) searchMarker.setMap(null);
-      searchMarker = new google.maps.Marker({
-        map,
-        position: { lat, lng },
-        title: best.formatted_address ?? query,
-      });
-    } catch (err) {
-      console.error(err);
-      metaEl.textContent = "";
-      setStatus(err?.message ?? "Geocoding failed.");
-    }
-  }
-
-  btn.addEventListener("click", runGeocode);
-  queryEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") runGeocode();
-  });
-}
 
 function wireMyLocationUI(map) {
   const btn = document.getElementById("myLocationBtn");
@@ -330,6 +263,10 @@ function wireMyLocationUI(map) {
           map,
           position: { lat, lng },
           title: "Your location",
+          // Different icon than standard markers (requirement)
+          icon: {
+            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+          },
         });
       },
       (err) => {
@@ -355,6 +292,186 @@ function wireMyLocationUI(map) {
   });
 }
 
+function wireCustomMarkerUI() {
+  const nameEl = document.getElementById("addName");
+  const categoryEl = document.getElementById("addCategory");
+  const notesEl = document.getElementById("addNotes");
+  const latEl = document.getElementById("addLat");
+  const lngEl = document.getElementById("addLng");
+  const useMyCoordsBtn = document.getElementById("useMyCoordsBtn");
+  const addBtn = document.getElementById("addMarkerBtn");
+  const exportBtn = document.getElementById("exportCustomJsonBtn");
+  const outEl = document.getElementById("customJsonOut");
+  const addressEl = document.getElementById("addAddress");
+  const geoBtn = document.getElementById("addGeoBtn");
+  const geoMetaEl = document.getElementById("addGeoMeta");
+
+  // If the custom marker UI isn't on the page, skip.
+  if (
+    !nameEl ||
+    !categoryEl ||
+    !notesEl ||
+    !latEl ||
+    !lngEl ||
+    !useMyCoordsBtn ||
+    !addBtn ||
+    !exportBtn ||
+    !outEl
+  ) {
+    return;
+  }
+
+  function renderJson() {
+    outEl.value = JSON.stringify(appState.customPlaces, null, 2);
+  }
+
+  // show initial JSON
+  renderJson();
+
+  geoBtn?.addEventListener("click", async () => {
+    // Prefer the explicit search field if provided; otherwise fall back to the Name field.
+    const query = String(addressEl?.value ?? "").trim() || String(nameEl.value ?? "").trim();
+    if (!query) {
+      setStatus("Enter a name or search text first.");
+      return;
+    }
+
+    try {
+      setStatus("");
+      if (geoMetaEl) geoMetaEl.textContent = "Searching…";
+
+      const result = await geocodeNominatim(query);
+      if (!result) {
+        if (geoMetaEl) geoMetaEl.textContent = "No results found.";
+        setStatus("No results found.");
+        return;
+      }
+
+      latEl.value = String(result.lat);
+      lngEl.value = String(result.lng);
+      if (geoMetaEl) geoMetaEl.textContent = result.displayName;
+    } catch (err) {
+      console.error(err);
+      if (geoMetaEl) geoMetaEl.textContent = "";
+      setStatus(err?.message ?? "Address lookup failed.");
+    }
+  });
+
+  useMyCoordsBtn.addEventListener("click", () => {
+    if (!appState.userLocation) {
+      setStatus("Click 'Use my location' first, then try again.");
+      return;
+    }
+
+    setStatus("");
+    latEl.value = String(appState.userLocation.lat);
+    lngEl.value = String(appState.userLocation.lng);
+  });
+
+  addBtn.addEventListener("click", () => {
+    const name = String(nameEl.value ?? "").trim();
+    const category = String(categoryEl.value ?? "uncategorized").trim();
+    const notes = String(notesEl.value ?? "").trim();
+    const address = String(addressEl?.value ?? "").trim();
+
+    const lat = Number.parseFloat(String(latEl.value ?? ""));
+    const lng = Number.parseFloat(String(lngEl.value ?? ""));
+
+    if (!name) {
+      setStatus("Please enter a name.");
+      return;
+    }
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      setStatus("Please enter valid lat/lng.");
+      return;
+    }
+    if (!appState.map || !appState.infoWindow) {
+      setStatus("Map not ready.");
+      return;
+    }
+
+    setStatus("");
+
+    const place = {
+      id: `custom-${Date.now()}`,
+      name,
+      category,
+      notes,
+      ...(address ? { address } : {}),
+      position: { lat, lng },
+      meta: { createdAt: new Date().toISOString(), source: "user" },
+    };
+
+    addCustomMarker(appState.map, appState.infoWindow, place);
+    appState.customPlaces.push(place);
+    renderJson();
+
+    // Update filters + directions list
+    applyFilter(appState.currentFilter);
+    populateDirectionsDestinations();
+  });
+
+  exportBtn.addEventListener("click", () => {
+    renderJson();
+  });
+}
+
+function populateDirectionsDestinations() {
+  const selectEl = document.getElementById("directionsTo");
+  if (!selectEl) return;
+
+  const current = selectEl.value;
+  selectEl.innerHTML = `<option value="" selected>Select a destination…</option>`;
+
+  for (const rec of appState.placeMarkers) {
+    if (!rec?.place?.position) continue;
+    const opt = document.createElement("option");
+    opt.value = rec.id ?? "";
+    opt.textContent = rec.place.name ?? rec.id ?? "(unnamed)";
+    selectEl.appendChild(opt);
+  }
+
+  // Restore selection if still present
+  if (current) selectEl.value = current;
+}
+
+function wireDirectionsUI() {
+  const selectEl = document.getElementById("directionsTo");
+  const btn = document.getElementById("directionsBtn");
+  const metaEl = document.getElementById("directionsMeta");
+  if (!selectEl || !btn) return;
+
+  populateDirectionsDestinations();
+
+  btn.addEventListener("click", () => {
+    const destId = selectEl.value;
+    if (!destId) {
+      if (metaEl) metaEl.textContent = "Choose a destination first.";
+      return;
+    }
+    if (!appState.userLocation) {
+      if (metaEl) metaEl.textContent = "Click 'Use my location' first.";
+      return;
+    }
+
+    const rec = appState.placeMarkersById.get(destId);
+    const dest = rec?.place?.position;
+    if (!dest) {
+      if (metaEl) metaEl.textContent = "Destination not found.";
+      return;
+    }
+
+    const origin = appState.userLocation;
+    const url = new URL("https://www.google.com/maps/dir/");
+    url.searchParams.set("api", "1");
+    url.searchParams.set("origin", `${origin.lat},${origin.lng}`);
+    url.searchParams.set("destination", `${dest.lat},${dest.lng}`);
+
+    if (metaEl) metaEl.textContent = "Opening directions in a new tab…";
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  });
+}
+
 async function boot() {
   try {
     const [places, customPlaces] = await Promise.all([
@@ -367,7 +484,9 @@ async function boot() {
     const map = createMap(places);
 
     // Keep the raw custom places for exporting/editing
-    appState.customPlaces = Array.isArray(customPlaces) ? [...customPlaces] : [];
+    appState.customPlaces = Array.isArray(customPlaces)
+      ? [...customPlaces]
+      : [];
 
     // Render custom/user markers (green)
     for (const place of customPlaces ?? []) {
@@ -375,9 +494,9 @@ async function boot() {
     }
 
     wireFilterUI();
-    wireGeocodeUI(map);
     wireMyLocationUI(map);
     wireCustomMarkerUI();
+    wireDirectionsUI();
 
     setStatus("");
   } catch (err) {
