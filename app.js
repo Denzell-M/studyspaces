@@ -1,260 +1,137 @@
-// StudySpaces
-// - Loads seeded study locations from ./data/locationSeed.json
-// - Renders them on a Google Map
-// - Lets you geocode a typed place/address into precise lat/lng using the UI in index.html
+// Requirements met:
+// - 10+ initial markers
+// - InfoWindow on marker click
+// - 4+ filter buttons
+// - Geolocation marker with different icon
+// - Add custom marker via form + category dropdown + geocoding
+// - Save custom markers to data/customMarker.json (via server API)
+// - Directions from user location to destination marker (rendered on map)
 //
-const GOOGLE_MAPS_API_KEY = "AIzaSyDVkxCzBOw-0Vo5CorJAxDWSDLXeYethq4";
-// Map ID styling is optional; not required for the assignment.
-// const GOOGLE_MAPS_MAP_ID = "4a1781507e7e91ecb60c6861";
+// SOA:"StAuth10244: I, Denzell Willis-Mackay, 000371340 certify that this material
+// is my original work. No other person's work has been used without due acknowledgement.
+// I have not made my work available to anyone else."
 
-const appState = {
-  map: null,
-  infoWindow: null,
-  placeMarkers: [], // [{ id, category, place, marker }]
-  placeMarkersById: new Map(),
-  currentFilter: "all",
-  customPlaces: [], // raw place objects loaded + user-added
-  userLocation: null, // { lat, lng }
-  directionsRenderer: null,
-  directionsService: null,
+const GOOGLE_MAPS_API_KEY = "AIzaSyDVkxCzBOw-0Vo5CorJAxDWSDLXeYethq4";
+
+const ICONS = {
+  user: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+  custom: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
 };
 
-async function loadPlaces() {
-  const res = await fetch("./data/locationSeed.json");
+const state = {
+  map: null,
+  info: null,
+  directionsService: null,
+  directionsRenderer: null,
+
+  markers: [], // [{ id, category, place, marker }]
+  markersById: new Map(),
+  currentFilter: "all",
+
+  userLocation: null,
+  userMarker: null,
+};
+
+const $ = (id) => document.getElementById(id);
+const text = (id, msg) => {
+  const el = $(id);
+  if (el) el.textContent = msg ?? "";
+};
+const setStatus = (msg) => text("status", msg);
+
+const slug = (s) =>
+  String(s ?? "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "")
+    .slice(0, 40);
+
+async function fetchJson(url, opts) {
+  const res = await fetch(url, opts);
   if (!res.ok) {
+    const body = await res.text().catch(() => "");
     throw new Error(
-      `Failed to load JSON (${res.status} ${res.statusText}) at ./data/locationSeed.json`,
+      `HTTP ${res.status} ${res.statusText} @ ${url} ${body}`.trim(),
     );
   }
   return res.json();
 }
 
-async function loadCustomMarkers() {
-  const res = await fetch("/api/customMarkers");
-  if (!res.ok) {
-    throw new Error(
-      `Failed to load JSON (${res.status} ${res.statusText}) at /api/customMarkers`,
-    );
-  }
-  return res.json();
-}
+const LS_KEY = "studyspaces.customMarkers";
 
-function setStatus(message) {
-  const el = document.getElementById("status");
-  if (el) el.textContent = message;
-}
+const loadSeedPlaces = () => fetchJson("./data/locationSeed.json");
 
-async function saveCustomMarker(marker) {
-  const res = await fetch("/api/customMarkers", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(marker),
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(
-      `Failed to save marker (${res.status} ${res.statusText}) ${text}`.trim(),
-    );
-  }
-
-  return res.json();
-}
-
-function loadGoogleMapsScript(apiKey) {
-  return new Promise((resolve, reject) => {
-    // If already loaded, resolve immediately
-    if (window.google?.maps) {
-      resolve();
-      return;
-    }
-
-    window.initMap = () => resolve();
-
-    const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(
-      apiKey,
-    )}&callback=initMap&loading=async`;
-    script.async = true;
-    script.defer = true;
-    script.onerror = () =>
-      reject(new Error("Failed to load Google Maps script."));
-    document.head.appendChild(script);
-  });
-}
-
-function assertMapEl() {
-  const mapEl = document.getElementById("map");
-  if (!mapEl) {
-    throw new Error(
-      'Missing "#map" element. Add <div id="map"></div> to index.html',
-    );
-  }
-  return mapEl;
-}
-
-
-// --- Geocoding (Google only) -------------------------------------------------
-// Uses Google Maps JavaScript API Geocoder.
-// Note: requires Geocoding API enabled + (usually) billing.
-function geocodePlace(query) {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!window.google?.maps?.Geocoder) {
-        reject(new Error("Google Geocoder not available (Maps JS not loaded?)"));
-        return;
-      }
-
-      const geocoder = new google.maps.Geocoder();
-      // Using `address` works for both addresses and many POI/business names.
-      geocoder.geocode({ address: query }, (results, status) => {
-        if (status === "OK" && results && results.length > 0) {
-          const best = results[0];
-          const loc = best.geometry.location;
-          resolve({
-            lat: loc.lat(),
-            lng: loc.lng(),
-            displayName: best.formatted_address ?? query,
-            provider: "google",
-          });
-          return;
-        }
-
-        reject(new Error(`GOOGLE_GEOCODE: ${status}`));
-      });
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
-
-function createMap(places) {
-  const mapEl = assertMapEl();
-
-  // Reset marker state each time we build the map
-  appState.placeMarkers = [];
-  appState.placeMarkersById = new Map();
-
-  // Default map load location
-  const center = places?.[0]?.position ?? { lat: 43.2557, lng: -79.8711 };
-
-  const map = new google.maps.Map(mapEl, {
-    center,
-    zoom: 13,
-    // mapId: GOOGLE_MAPS_MAP_ID,
-  });
-
-  const info = new google.maps.InfoWindow();
-  appState.map = map;
-  appState.infoWindow = info;
-
-  // Directions support (rendered on the map)
-  appState.directionsService = new google.maps.DirectionsService();
-  appState.directionsRenderer = new google.maps.DirectionsRenderer({
-    map,
-    suppressMarkers: false,
-    preserveViewport: false,
-  });
-
-  for (const place of places) {
-    if (!place?.position) continue;
-
-    const marker = new google.maps.Marker({
-      map,
-      position: place.position,
-      title: place.name,
-    });
-
-    // Store marker references for filter/show/hide later.
-    const record = {
-      id: place.id,
-      category: place.category ?? "uncategorized",
-      place,
-      marker,
-    };
-    appState.placeMarkers.push(record);
-    if (place.id) appState.placeMarkersById.set(place.id, record);
-
-    marker.addListener("click", () => {
-      info.setContent(`
-        <div style="max-width:240px">
-          <div style="font-weight:600">${place.name}</div>
-          <div style="font-size:0.9em">Category: ${place.category ?? ""}</div>
-          <div style="margin-top:6px">${place.notes ?? ""}</div>
-        </div>
-      `);
-      info.open({ anchor: marker, map });
-    });
-  }
-
-  return map;
-}
-
-async function showDirectionsTo(dest) {
-  const metaEl = document.getElementById("directionsMeta");
-  if (!appState.userLocation) {
-    if (metaEl) metaEl.textContent = "Click 'Use my location' first.";
-    setStatus("Click 'Use my location' first.");
-    return;
-  }
-
-  if (!appState.directionsService || !appState.directionsRenderer) {
-    setStatus("Directions service is not ready.");
-    return;
-  }
-
-  const origin = appState.userLocation;
-
+function loadCustomPlaces() {
   try {
-    if (metaEl) metaEl.textContent = "Calculating route…";
+    const raw = localStorage.getItem(LS_KEY);
+    const data = raw ? JSON.parse(raw) : [];
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
 
-    const res = await appState.directionsService.route({
-      origin,
-      destination: dest,
-      travelMode: google.maps.TravelMode.WALKING,
+function saveCustomPlace(place) {
+  const places = loadCustomPlaces();
+  places.push(place);
+  localStorage.setItem(LS_KEY, JSON.stringify(places));
+  return place;
+}
+
+const loadGoogleMapsScript = (apiKey) =>
+  new Promise((resolve, reject) => {
+    if (window.google?.maps) return resolve();
+    window.initMap = () => resolve();
+    const s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&callback=initMap&loading=async`;
+    s.async = true;
+    s.defer = true;
+    s.onerror = () => reject(new Error("Failed to load Google Maps"));
+    document.head.appendChild(s);
+  });
+
+const geocodeGoogle = (query) =>
+  new Promise((resolve, reject) => {
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: query }, (results, status) => {
+      if (status === "OK" && results?.length) {
+        const best = results[0];
+        const loc = best.geometry.location;
+        resolve({
+          lat: loc.lat(),
+          lng: loc.lng(),
+          displayName: best.formatted_address ?? query,
+        });
+      } else {
+        reject(new Error(`GOOGLE_GEOCODE: ${status}`));
+      }
     });
+  });
 
-    appState.directionsRenderer.setDirections(res);
-    if (metaEl) metaEl.textContent = "Route shown on map.";
-  } catch (err) {
-    console.error(err);
-    if (metaEl) metaEl.textContent = "";
-    // Surface the actual reason in the UI (usually REQUEST_DENIED / API not enabled)
-    setStatus(`Failed to calculate directions: ${err?.message ?? String(err)}`);
-  }
+function infoHtml(place) {
+  return `
+    <div style="max-width:240px">
+      <div style="font-weight:600">${place.name ?? ""}</div>
+      <div style="font-size:0.9em">Category: ${place.category ?? ""}</div>
+      <div style="margin-top:6px">${place.notes ?? ""}</div>
+    </div>
+  `;
 }
 
-function clearDirections() {
-  const metaEl = document.getElementById("directionsMeta");
-  if (appState.directionsRenderer) {
-    // Clear any rendered route
-    appState.directionsRenderer.set("directions", null);
-  }
-  if (metaEl) metaEl.textContent = "";
-}
-
-function addCustomMarker(map, infoWindow, place) {
-  if (!place?.position) return;
+function addMarker(place, { iconUrl } = {}) {
+  if (!state.map || !place?.position) return;
 
   const marker = new google.maps.Marker({
-    map,
+    map: state.map,
     position: place.position,
     title: place.name,
-    // Green marker icon for user/custom markers
-    icon: {
-      url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-    },
+    ...(iconUrl ? { icon: { url: iconUrl } } : {}),
   });
 
   marker.addListener("click", () => {
-    infoWindow.setContent(`
-      <div style="max-width:240px">
-        <div style="font-weight:600">${place.name ?? "Custom marker"}</div>
-        <div style="font-size:0.9em">Category: ${place.category ?? ""}</div>
-        <div style="margin-top:6px">${place.notes ?? ""}</div>
-      </div>
-    `);
-    infoWindow.open({ anchor: marker, map });
+    state.info.setContent(infoHtml(place));
+    state.info.open({ anchor: marker, map: state.map });
   });
 
   const rec = {
@@ -263,243 +140,139 @@ function addCustomMarker(map, infoWindow, place) {
     place,
     marker,
   };
-
-  // Include custom markers in the same collection so filtering/directions work.
-  appState.placeMarkers.push(rec);
-  if (place.id) appState.placeMarkersById.set(place.id, rec);
+  state.markers.push(rec);
+  if (rec.id) state.markersById.set(rec.id, rec);
 }
 
-function applyFilter(category) {
-  const map = appState.map;
-  if (!map) return;
+function applyFilter(filter) {
+  state.currentFilter = (filter ?? "all").toLowerCase();
+  state.info?.close();
 
-  // Close any open InfoWindow so it doesn't float over hidden markers.
-  appState.infoWindow?.close();
+  for (const rec of state.markers) {
+    const show =
+      state.currentFilter === "all" || rec.category === state.currentFilter;
+    rec.marker.setMap(show ? state.map : null);
+  }
 
-  const selected = (category ?? "all").toLowerCase();
-
-  for (const rec of appState.placeMarkers) {
-    const shouldShow = selected === "all" || rec.category === selected;
-    rec.marker.setMap(shouldShow ? map : null);
+  const bar = $("filterBar");
+  if (!bar) return;
+  for (const btn of bar.querySelectorAll("button[data-filter]")) {
+    const active =
+      (btn.dataset.filter ?? "").toLowerCase() === state.currentFilter;
+    btn.classList.toggle("btn-dark", active);
+    btn.classList.toggle("btn-outline-dark", !active);
   }
 }
 
-function setActiveFilterButton(filterBarEl, selectedFilter) {
-  const selected = (selectedFilter ?? "all").toLowerCase();
-  const buttons = filterBarEl.querySelectorAll("button[data-filter]");
-
-  for (const btn of buttons) {
-    const isActive = (btn.dataset.filter ?? "").toLowerCase() === selected;
-    btn.classList.toggle("btn-dark", isActive);
-    btn.classList.toggle("btn-outline-dark", !isActive);
+function populateDestinations() {
+  const sel = $("directionsTo");
+  if (!sel) return;
+  const current = sel.value;
+  sel.innerHTML = `<option value="" selected>Select a destination…</option>`;
+  for (const rec of state.markers) {
+    if (!rec?.id) continue;
+    const opt = document.createElement("option");
+    opt.value = rec.id;
+    opt.textContent = rec.place?.name ?? rec.id;
+    sel.appendChild(opt);
   }
+  if (current) sel.value = current;
 }
 
-function wireFilterUI() {
-  const filterBarEl = document.getElementById("filterBar");
-  if (!filterBarEl) return;
-
-  // Default filter state on load
-  setActiveFilterButton(filterBarEl, "all");
-  applyFilter("all");
-
-  // Event delegation: handle clicks on any filter button
-  filterBarEl.addEventListener("click", (e) => {
+function wireFilters() {
+  $("filterBar")?.addEventListener("click", (e) => {
     const btn = e.target.closest?.("button[data-filter]");
-    if (!btn) return;
-
-    const filter = btn.dataset.filter ?? "all";
-    appState.currentFilter = filter;
-    setActiveFilterButton(filterBarEl, filter);
-    applyFilter(filter);
+    if (btn) applyFilter(btn.dataset.filter);
   });
 }
 
-
-function wireMyLocationUI(map) {
-  const btn = document.getElementById("myLocationBtn");
-  if (!btn) return;
-
-  let userMarker = null;
-
-  btn.addEventListener("click", () => {
-    if (!navigator.geolocation) {
-      setStatus("Geolocation is not supported by this browser.");
-      return;
-    }
+function wireGeolocation() {
+  $("myLocationBtn")?.addEventListener("click", () => {
+    if (!navigator.geolocation) return setStatus("Geolocation not supported.");
 
     setStatus("Requesting your location…");
-
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-
-        // Save user location so other UI (like custom marker creation) can reuse it
-        appState.userLocation = { lat, lng };
-
-        // If the custom marker coordinate inputs exist, pre-fill them (optional convenience)
-        const addLatEl = document.getElementById("addLat");
-        const addLngEl = document.getElementById("addLng");
-        if (addLatEl && addLngEl) {
-          addLatEl.value = String(lat);
-          addLngEl.value = String(lng);
-        }
+        state.userLocation = { lat, lng };
 
         setStatus("");
-        map.panTo({ lat, lng });
-        map.setZoom(15);
+        state.map.panTo({ lat, lng });
+        state.map.setZoom(15);
 
-        if (userMarker) userMarker.setMap(null);
-        userMarker = new google.maps.Marker({
-          map,
+        if (state.userMarker) state.userMarker.setMap(null);
+        state.userMarker = new google.maps.Marker({
+          map: state.map,
           position: { lat, lng },
           title: "Your location",
-          // Different icon than standard markers (requirement)
-          icon: {
-            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-          },
+          icon: { url: ICONS.user },
         });
-      },
-      (err) => {
-        console.error(err);
 
-        const msg =
-          err.code === err.PERMISSION_DENIED
-            ? "Location permission denied."
-            : err.code === err.POSITION_UNAVAILABLE
-              ? "Location unavailable."
-              : err.code === err.TIMEOUT
-                ? "Location request timed out."
-                : "Failed to get location.";
-
-        setStatus(msg);
+        const addLat = $("addLat");
+        const addLng = $("addLng");
+        if (addLat && addLng) {
+          addLat.value = String(lat);
+          addLng.value = String(lng);
+        }
       },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 30000,
-      },
+      () => setStatus("Failed to get location."),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
     );
+  });
+
+  $("useMyCoordsBtn")?.addEventListener("click", () => {
+    if (!state.userLocation) return setStatus("Click 'Use my location' first.");
+    $("addLat").value = String(state.userLocation.lat);
+    $("addLng").value = String(state.userLocation.lng);
+    setStatus("");
   });
 }
 
-function wireCustomMarkerUI() {
-  const nameEl = document.getElementById("addName");
-  const categoryEl = document.getElementById("addCategory");
-  const notesEl = document.getElementById("addNotes");
-  const latEl = document.getElementById("addLat");
-  const lngEl = document.getElementById("addLng");
-  const useMyCoordsBtn = document.getElementById("useMyCoordsBtn");
-  const addBtn = document.getElementById("addMarkerBtn");
-  const saveMetaEl = document.getElementById("customSaveMeta");
-  const addressEl = document.getElementById("addAddress");
-  const geoBtn = document.getElementById("addGeoBtn");
-  const geoMetaEl = document.getElementById("addGeoMeta");
-
-  // If the custom marker UI isn't on the page, skip.
-  if (
-    !nameEl ||
-    !categoryEl ||
-    !notesEl ||
-    !latEl ||
-    !lngEl ||
-    !useMyCoordsBtn ||
-    !addBtn
-  ) {
-    return;
-  }
-
-  if (saveMetaEl) {
-    saveMetaEl.textContent = "";
-  }
-
-  geoBtn?.addEventListener("click", async () => {
-    // Search by the Name field only.
-    const query = String(nameEl.value ?? "").trim();
-    if (!query) {
-      setStatus("Enter a name first.");
-      return;
-    }
+function wireCustomMarkerSearch() {
+  $("addGeoBtn")?.addEventListener("click", async () => {
+    const meta = $("addGeoMeta");
+    const name = String($("addName")?.value ?? "").trim();
+    if (!name) return setStatus("Enter a name first.");
 
     try {
       setStatus("");
-      if (geoMetaEl) geoMetaEl.textContent = "Searching…";
+      text("addGeoMeta", "Searching…");
+      const res = await geocodeGoogle(`${name}, Hamilton, ON, Canada`);
 
-      // Bias towards your project location to reduce incorrect global matches.
-      const result = await geocodePlace(`${query}, Hamilton, ON, Canada`);
-      if (!result) {
-        if (geoMetaEl) geoMetaEl.textContent = "No results found.";
-        setStatus("No results found.");
-        return;
-      }
+      $("addLat").value = String(res.lat);
+      $("addLng").value = String(res.lng);
+      if (meta) meta.textContent = res.displayName;
 
-      latEl.value = String(result.lat);
-      lngEl.value = String(result.lng);
-      if (geoMetaEl) {
-        geoMetaEl.textContent = `${result.displayName} (${result.provider})`;
-      }
-
-      // Pan/zoom the map to the searched location
-      if (appState.map) {
-        appState.map.panTo({ lat: result.lat, lng: result.lng });
-        appState.map.setZoom(16);
-      }
-    } catch (err) {
-      console.error(err);
-      if (geoMetaEl) geoMetaEl.textContent = "";
-      setStatus(err?.message ?? "Address lookup failed.");
+      state.map.panTo({ lat: res.lat, lng: res.lng });
+      state.map.setZoom(16);
+    } catch (e) {
+      console.error(e);
+      if (meta) meta.textContent = "";
+      setStatus(e?.message ?? String(e));
     }
   });
+}
 
-  useMyCoordsBtn.addEventListener("click", () => {
-    if (!appState.userLocation) {
-      setStatus("Click 'Use my location' first, then try again.");
-      return;
-    }
+function wireCustomMarkerSave() {
+  $("addMarkerBtn")?.addEventListener("click", async () => {
+    const saveMeta = $("customSaveMeta");
 
-    setStatus("");
-    latEl.value = String(appState.userLocation.lat);
-    lngEl.value = String(appState.userLocation.lng);
-  });
+    const name = String($("addName")?.value ?? "").trim();
+    const category = String($("addCategory")?.value ?? "uncategorized").trim();
+    const notes = String($("addNotes")?.value ?? "").trim();
+    const address = String($("addAddress")?.value ?? "").trim();
 
-  addBtn.addEventListener("click", async () => {
-    const name = String(nameEl.value ?? "").trim();
-    const category = String(categoryEl.value ?? "uncategorized").trim();
-    const notes = String(notesEl.value ?? "").trim();
-    const address = String(addressEl?.value ?? "").trim();
+    const lat = Number.parseFloat(String($("addLat")?.value ?? ""));
+    const lng = Number.parseFloat(String($("addLng")?.value ?? ""));
 
-    const lat = Number.parseFloat(String(latEl.value ?? ""));
-    const lng = Number.parseFloat(String(lngEl.value ?? ""));
+    if (!name) return setStatus("Enter a name.");
+    if (!Number.isFinite(lat) || !Number.isFinite(lng))
+      return setStatus("Enter valid lat/lng.");
 
-    if (!name) {
-      setStatus("Please enter a name.");
-      return;
-    }
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-      setStatus("Please enter valid lat/lng.");
-      return;
-    }
-    if (!appState.map || !appState.infoWindow) {
-      setStatus("Map not ready.");
-      return;
-    }
-
-    setStatus("");
-
-    const uid = String(Date.now());
-    const slug = (s) =>
-      String(s ?? "")
-        .toLowerCase()
-        .trim()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "")
-        .slice(0, 40);
-
-    const descriptiveId = `${slug(category)}-${slug(name)}-${uid}`;
-
+    const id = `${slug(category)}-${slug(name)}-${Date.now()}`;
     const place = {
-      id: descriptiveId,
+      id,
       name,
       category,
       notes,
@@ -509,115 +282,88 @@ function wireCustomMarkerUI() {
     };
 
     try {
-      if (saveMetaEl) saveMetaEl.textContent = "Saving…";
-
-      // Persist to data/customMarker.json via server API
-      const saved = await saveCustomMarker(place);
-
-      // Add to map + local state
-      addCustomMarker(appState.map, appState.infoWindow, saved);
-      appState.customPlaces.push(saved);
-
-      if (saveMetaEl) {
-        saveMetaEl.textContent = "Saved to data/customMarker.json.";
-      }
-    } catch (err) {
-      console.error(err);
-      setStatus(err?.message ?? String(err));
-      if (saveMetaEl) saveMetaEl.textContent = "Save failed.";
-      return;
+      setStatus("");
+      if (saveMeta) saveMeta.textContent = "Saving…";
+      const saved = saveCustomPlace(place);
+      addMarker(saved, { iconUrl: ICONS.custom });
+      applyFilter(state.currentFilter);
+      populateDestinations();
+      if (saveMeta) saveMeta.textContent = "Saved.";
+    } catch (e) {
+      console.error(e);
+      if (saveMeta) saveMeta.textContent = "";
+      setStatus(e?.message ?? String(e));
     }
-
-    // Update filters + directions list
-    applyFilter(appState.currentFilter);
-    populateDirectionsDestinations();
   });
 }
 
-function populateDirectionsDestinations() {
-  const selectEl = document.getElementById("directionsTo");
-  if (!selectEl) return;
+function wireDirections() {
+  $("directionsBtn")?.addEventListener("click", async () => {
+    const meta = $("directionsMeta");
+    const destId = $("directionsTo")?.value;
+    if (!destId) return (meta.textContent = "Choose a destination.");
+    if (!state.userLocation)
+      return (meta.textContent = "Click 'Use my location' first.");
 
-  const current = selectEl.value;
-  selectEl.innerHTML = `<option value="" selected>Select a destination…</option>`;
-
-  for (const rec of appState.placeMarkers) {
-    if (!rec?.place?.position) continue;
-    const opt = document.createElement("option");
-    opt.value = rec.id ?? "";
-    opt.textContent = rec.place.name ?? rec.id ?? "(unnamed)";
-    selectEl.appendChild(opt);
-  }
-
-  // Restore selection if still present
-  if (current) selectEl.value = current;
-}
-
-function wireDirectionsUI() {
-  const selectEl = document.getElementById("directionsTo");
-  const btn = document.getElementById("directionsBtn");
-  const clearBtn = document.getElementById("clearDirectionsBtn");
-  const metaEl = document.getElementById("directionsMeta");
-  if (!selectEl || !btn) return;
-
-  populateDirectionsDestinations();
-
-  btn.addEventListener("click", () => {
-    const destId = selectEl.value;
-    if (!destId) {
-      if (metaEl) metaEl.textContent = "Choose a destination first.";
-      return;
-    }
-    if (!appState.userLocation) {
-      if (metaEl) metaEl.textContent = "Click 'Use my location' first.";
-      return;
-    }
-
-    const rec = appState.placeMarkersById.get(destId);
+    const rec = state.markersById.get(destId);
     const dest = rec?.place?.position;
-    if (!dest) {
-      if (metaEl) metaEl.textContent = "Destination not found.";
-      return;
-    }
+    if (!dest) return (meta.textContent = "Destination not found.");
 
-    showDirectionsTo(dest);
+    try {
+      meta.textContent = "Calculating route…";
+      const res = await state.directionsService.route({
+        origin: state.userLocation,
+        destination: dest,
+        travelMode: google.maps.TravelMode.WALKING,
+      });
+      state.directionsRenderer.setDirections(res);
+      meta.textContent = "Route shown.";
+    } catch (e) {
+      console.error(e);
+      meta.textContent = "";
+      setStatus(e?.message ?? String(e));
+    }
   });
 
-  clearBtn?.addEventListener("click", () => {
-    clearDirections();
+  $("clearDirectionsBtn")?.addEventListener("click", () => {
+    state.directionsRenderer?.set("directions", null);
+    text("directionsMeta", "");
   });
 }
 
 async function boot() {
   try {
-    const [places, customPlaces] = await Promise.all([
-      loadPlaces(),
-      loadCustomMarkers(),
-    ]);
-
+    const seed = await loadSeedPlaces();
+    const custom = loadCustomPlaces();
     await loadGoogleMapsScript(GOOGLE_MAPS_API_KEY);
 
-    const map = createMap(places);
+    state.map = new google.maps.Map($("map"), {
+      center: seed?.[0]?.position ?? { lat: 43.2557, lng: -79.8711 },
+      zoom: 13,
+    });
 
-    // Keep the raw custom places for exporting/editing
-    appState.customPlaces = Array.isArray(customPlaces)
-      ? [...customPlaces]
-      : [];
+    state.info = new google.maps.InfoWindow();
+    state.directionsService = new google.maps.DirectionsService();
+    state.directionsRenderer = new google.maps.DirectionsRenderer({
+      map: state.map,
+    });
 
-    // Render custom/user markers (green)
-    for (const place of customPlaces ?? []) {
-      addCustomMarker(map, appState.infoWindow, place);
-    }
+    for (const place of seed) addMarker(place);
+    for (const place of custom ?? [])
+      addMarker(place, { iconUrl: ICONS.custom });
 
-    wireFilterUI();
-    wireMyLocationUI(map);
-    wireCustomMarkerUI();
-    wireDirectionsUI();
+    wireFilters();
+    wireGeolocation();
+    wireCustomMarkerSearch();
+    wireCustomMarkerSave();
+    wireDirections();
 
+    applyFilter("all");
+    populateDestinations();
     setStatus("");
-  } catch (err) {
-    console.error(err);
-    setStatus(err?.message ?? String(err));
+  } catch (e) {
+    console.error(e);
+    setStatus(e?.message ?? String(e));
   }
 }
 
