@@ -22,13 +22,9 @@
   </head>
   <body>
     <div class="container py-4">
-      <h1 class="display-6 fw-medium">Cultivate your next Study Session.</h1>
+      <h1 class="display-6 fw-medium">StudySpaces</h1>
 
       <p id="status" class="text-danger"></p>
-
-      <hr />
-
-      <h2 class="h5">Map</h2>
 
       <div
         class="d-flex flex-wrap gap-2 align-items-center mb-2"
@@ -88,17 +84,10 @@
 
       <div id="map" class="rounded border"></div>
 
-      <hr />
+      <hr class="my-4" />
 
-      <div class="mb-5">
-        <h3 class="h6">Add a location (custom marker)</h3>
-        <p class="text-muted mb-2">
-          Add your own location. It will show as a
-          <strong>green</strong> marker. (Saving to
-          <code>data/customMarker.json</code> requires a backend; for now we’ll
-          save it automatically.)
-        </p>
-
+      <div class="mb-4">
+        <h2 class="h6">Add a location (custom marker)</h2>
         <div class="row g-2">
           <div class="col-12 col-md-6">
             <label for="addName" class="form-label mb-1">Name</label>
@@ -106,7 +95,7 @@
               id="addName"
               class="form-control"
               type="text"
-              placeholder="e.g. CoCo Fresh Tea"
+              placeholder="e.g. Costco Wholesale, Ancaster"
             />
           </div>
           <div class="col-12 col-md-6">
@@ -121,63 +110,60 @@
           </div>
 
           <div class="col-12">
-            <label for="addAddress" class="form-label mb-1">Address (optional)</label>
+            <label for="addAddress" class="form-label mb-1"
+              >Address (optional)</label
+            >
             <input
               id="addAddress"
               class="form-control"
               type="text"
-              placeholder="e.g. 1548 Main St W, Hamilton, ON"
-              autocomplete="off"
+              placeholder="Optional address"
             />
-            <div class="form-text">
-              Optional metadata for the marker. Coordinates are looked up using the <strong>Name</strong> field.
-            </div>
           </div>
 
           <div class="col-12">
-            <label class="form-label mb-1">Coordinates (lat/lng)</label>
+            <label for="addNotes" class="form-label mb-1">Notes</label>
+            <textarea id="addNotes" class="form-control" rows="2"></textarea>
+          </div>
+
+          <div class="col-12">
             <div class="row g-2">
-              <div class="col-12 col-md-6">
+              <div class="col-6">
+                <label for="addLat" class="form-label mb-1">Latitude</label>
                 <input
                   id="addLat"
                   class="form-control"
                   type="number"
                   step="any"
-                  placeholder="Latitude (e.g. 43.2577761)"
                 />
               </div>
-              <div class="col-12 col-md-6">
+              <div class="col-6">
+                <label for="addLng" class="form-label mb-1">Longitude</label>
                 <input
                   id="addLng"
                   class="form-control"
                   type="number"
                   step="any"
-                  placeholder="Longitude (e.g. -79.9252709)"
                 />
               </div>
             </div>
-            <div class="form-text">
-              Tip: click <strong>Use my location</strong> above the map, then click
-              <strong>Use my location coords</strong> below.
-            </div>
-          </div>
-
-          <div class="col-12">
-            <label for="addNotes" class="form-label mb-1">Notes</label>
-            <textarea
-              id="addNotes"
-              class="form-control"
-              rows="2"
-              placeholder="Optional notes..."
-            ></textarea>
+            <div class="form-text" id="addGeoMeta"></div>
           </div>
 
           <div class="col-12 d-flex gap-2 flex-wrap">
-            <button id="addGeoBtn" class="btn btn-outline-primary" type="button">
-              Search lat/lng (by name)
+            <button
+              id="addGeoBtn"
+              class="btn btn-outline-primary"
+              type="button"
+            >
+              Search lat/lng (Google)
             </button>
-            <button id="useMyCoordsBtn" class="btn btn-outline-primary" type="button">
-              Use my location coords
+            <button
+              id="useMyCoordsBtn"
+              class="btn btn-outline-primary"
+              type="button"
+            >
+              Use my coords
             </button>
             <button id="addMarkerBtn" class="btn btn-success" type="button">
               Add green marker
@@ -187,41 +173,43 @@
           <div class="col-12">
             <div class="form-text" id="customSaveMeta"></div>
           </div>
-
-          <div class="col-12">
-            <div class="form-text" id="addGeoMeta"></div>
-          </div>
         </div>
       </div>
 
-      <hr />
+      <hr class="my-4" />
 
-      <div class="mb-5">
-        <h3 class="h6">Directions</h3>
-        <p class="text-muted mb-2">
-          Get directions from your <strong>current location marker</strong> to a destination.
-          Select a destination below after clicking <strong>Use my location</strong>.
-        </p>
-
+      <div class="mb-4">
+        <h2 class="h6">Directions</h2>
         <div class="row g-2 align-items-end">
           <div class="col-12 col-md-8">
-            <label for="directionsTo" class="form-label mb-1">Destination</label>
+            <label for="directionsTo" class="form-label mb-1"
+              >Destination</label
+            >
             <select id="directionsTo" class="form-select">
               <option value="" selected>Select a destination…</option>
-              <!-- Filled by app.js -->
             </select>
           </div>
           <div class="col-12 col-md-4 d-grid gap-2">
-            <button id="directionsBtn" class="btn btn-outline-success" type="button">
+            <button
+              id="directionsBtn"
+              class="btn btn-outline-success"
+              type="button"
+            >
               Show directions on map
             </button>
-            <button id="clearDirectionsBtn" class="btn btn-outline-secondary" type="button">
+            <button
+              id="clearDirectionsBtn"
+              class="btn btn-outline-secondary"
+              type="button"
+            >
               Clear directions
             </button>
           </div>
         </div>
-
         <div class="form-text mt-2" id="directionsMeta"></div>
+      <div class="small text-muted">
+        Tip: run a local server (required for fetch + geolocation permissions).
+        For example: <code>python3 -m http.server 8000</code>
       </div>
     </div>
   </body>
